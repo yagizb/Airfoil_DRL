@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+
+# venv / secrets
+.env
+.venv/
+venv/
+
+# logs / outputs
+*.log
+*.out
+runs/
+outputs/
+results/
+
+# models / checkpoints
+*.ckpt
+*.pt
+*.pth
+*.pkl
+
+# OS
+.DS_Store
