@@ -47,6 +47,13 @@ VF_COEF         = 0.5                # how much the critic matters in training -
 VERBOSE         = 1                  # =0 → no output (silent) , =1 → training progress printed (timesteps, FPS, reward, losses).
 TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 33    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
 TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train 
+# ---------- SAC Training ---------
+TAU             = 0.005
+ENT_COEF_SAC    = "auto"    
+LEARNING_STARTS = 100    
+# ---- SAC-compatible training ----
+BUFFER_SIZE       = 100000
+
 # ---------- Logging / Saving ----------
 MAX_EPISODES    = 501
 SAVE_INTERVAL   = 1001
