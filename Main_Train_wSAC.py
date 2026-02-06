@@ -4,6 +4,7 @@ from pathlib import Path
 import multiprocessing as mp
 import config
 from AirfoilEnv import AirfoilEnv
+from AirfoilCallBacks import TensorboardAeroCallback
 from Reset import reset_history
 
 def create_env(env_id):
@@ -16,7 +17,7 @@ def create_env(env_id):
             env_id=env_id,
             n_envs=config.NUM_ENVS,
             work_dir=str(work_dir),
-            save_data=True,  # OK only if it writes under work_dir (env-specific)
+            save_data=False,  # OK only if it writes under work_dir (env-specific)
             fidelity=config.FIDELITY,
             batch_id=0,
             angle_of_attack=config.AOA,
@@ -37,9 +38,7 @@ if __name__ == "__main__":
 
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
 
-    model_basename = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
-    run_dir = Path(getattr(config, "WORK_ROOT", "runs")) / model_basename
-    run_dir.mkdir(parents=True, exist_ok=True)
+    MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
 
     # vec_env = SubprocVecEnv([create_env(i) for i in range(config.NUM_ENVS)])
     vec_env = SubprocVecEnv(
@@ -66,10 +65,12 @@ if __name__ == "__main__":
         seed=config.SEED,
         tensorboard_log="./tensorboard_logs/",
     )
+    cb = TensorboardAeroCallback(log_every=100)
+    
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="Roll_001")
+    print("Learned")
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS, tb_log_name="Roll_001")
-
-    ms = run_dir / f"{model_basename}_SAC_001"
+    ms = MODEL_BASENAME + "_001"
     model.save(str(ms))
     vec_env.save(str(ms) + ".pkl")
     vec_env.close()
