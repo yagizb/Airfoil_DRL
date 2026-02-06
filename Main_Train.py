@@ -41,6 +41,9 @@ if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
        
     config.set_global_seeds(config.SEED)
+    trial_number = 92 #### optimum hyperparameters found at trial 48, see Optuna_Results_Summary.txt
+    
+    SEED = int(config.SEED) + trial_number
     print(f"NUM_ENVS = {config.NUM_ENVS}")
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
         
@@ -50,7 +53,6 @@ if __name__ == "__main__":
         [create_env(i) for i in range(config.NUM_ENVS)],
         start_method="spawn",
     )
-    #vec_env = DummyVecEnv([create_env(i) for i in range(config.NUM_ENVS)])
     vec_env = VecMonitor(vec_env)
     vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
     vec_env.seed(config.SEED)
@@ -68,7 +70,7 @@ if __name__ == "__main__":
         ent_coef=config.ENT_COEF,
         vf_coef=config.VF_COEF,
         verbose=config.VERBOSE,
-        seed=config.SEED,
+        seed=SEED,
         tensorboard_log="./tensorboard_logs/",
     )
 
