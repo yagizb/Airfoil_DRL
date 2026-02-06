@@ -41,7 +41,7 @@ if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
        
     config.set_global_seeds(config.SEED)
-    trial_number = 92 #### optimum hyperparameters found at trial 48, see Optuna_Results_Summary.txt
+    trial_number = 92 #### optimum hyperparameters found at trial ???, see Optuna_Results_Summary.txt
     
     SEED = int(config.SEED) + trial_number
     print(f"NUM_ENVS = {config.NUM_ENVS}")
@@ -55,7 +55,8 @@ if __name__ == "__main__":
     )
     vec_env = VecMonitor(vec_env)
     vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
-    vec_env.seed(config.SEED)
+    #vec_env.seed(config.SEED)
+    vec_env.seed(SEED)
         
     model = PPO(
         "MlpPolicy",

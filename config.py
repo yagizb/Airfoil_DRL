@@ -26,26 +26,27 @@ NUM_CONTROL_POINTS  = 18    # Bezier Curves, control points
 
 # ---------- PPO Training ---------
 #TARGET_KL       = 0.03
-LEARNING_RATE   = 1.0e-04
-CLIP_RANGE      = 0.1
-GAMMA           = 0.99               # Discount factor
-GAE_LAMBDA      = 0.95
-SDE_SAMPLE_FREQ = 5                 # resample noise every ** steps         
+LEARNING_RATE   = 0.000011
+CLIP_RANGE      = 0.1041
+GAMMA           = 0.9707               # Discount factor
+GAE_LAMBDA      = 0.9773
+SDE_SAMPLE_FREQ = 0                 # resample noise every ** steps         
 USE_SDE         = False              # (SB3), use_sde controls whether the policy uses State-Dependent Exploration (SDE) instead of the default action noise.
                                     # use_sde=True is most useful for continuous action spaces. (like control points of an airfoil).
                                      #is set to False (which is the default), the policy will use unstructured Gaussian noise for exploration
 # Roll_out        = 2                 # Collects experience from the environment using current policy. 
 # N_STEPS_cal     = 2048/(NUM_ENVS*Roll_out)                                
-N_STEPS         = 128
-BATCH_SIZE      = 64                # Sub-chunks of rollout used during network training.
-N_EPOCHS        = 5                # How many passes over the same rollout data.
+N_STEPS         = 256
+BATCH_SIZE      = 32                # Sub-chunks of rollout used during network training.
+N_EPOCHS        = 20                # How many passes over the same rollout data.
 
 
-MAX_GRAD_NORM   = 0.7434
-ENT_COEF        = 0.01  # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default                        
-VF_COEF         = 0.5                # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
-VERBOSE         = 1                  # =0 → no output (silent) , =1 → training progress printed (timesteps, FPS, reward, losses).
-TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 33    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
+MAX_GRAD_NORM   = 0.3995
+ENT_COEF        = 0.00245  # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default                        
+VF_COEF         = 0.5658                # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
+               # =0 → no output (silent) , =1 → training progress printed (timesteps, FPS, reward, losses).
+TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 1    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
+VERBOSE         = 1   
 TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train 
 # ---------- SAC Training ---------
 TAU             = 0.005
@@ -55,8 +56,8 @@ LEARNING_STARTS = 100
 BUFFER_SIZE       = 100000
 
 # ---------- Logging / Saving ----------
-MAX_EPISODES    = 501
-SAVE_INTERVAL   = 1001
+MAX_EPISODES    = 2001
+SAVE_INTERVAL   = 1002
 
 MODEL_BASENAME = f"airfoil_Re{int(RE/1e6)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}"
 LOG_DIR = "tb_logs"                  # TensorBoard log dir
@@ -65,9 +66,6 @@ PATIENCE_EVALS = 100000
 MIN_EVALS_BEFORE_CHECK = 32
 EVAL_FREQ = 16
 N_EVAL_EPISODES = 10
-
-### 688 e kadar devam etmiş, = 512  176/16 =11
-# LOAD_MODE = "predict"               # "train" "predict"  
  
 def set_global_seeds(seed: int = SEED):
     random.seed(seed)
