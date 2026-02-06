@@ -58,18 +58,18 @@ if __name__ == "__main__":
         batch_size=config.BATCH_SIZE,
         tau=config.TAU,
         gamma=config.GAMMA,
-        ent_coef=config.ENT_COEF_SAC,
+        ent_coef=config.ENT_COEF,
         learning_starts=config.LEARNING_STARTS,
-        train_freq=1,
-        gradient_steps=4,
+        train_freq=config.TRAIN_FREQ,
+        gradient_steps=config.GRADIENT_STEPS,
         verbose=config.VERBOSE,
         seed=config.SEED,
         tensorboard_log="./tensorboard_logs/",
     )
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS, tb_log_name="Roll_033")
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS, tb_log_name="Roll_001")
 
-    ms = run_dir / f"{model_basename}_SAC_033"
+    ms = run_dir / f"{model_basename}_SAC_001"
     model.save(str(ms))
     vec_env.save(str(ms) + ".pkl")
     vec_env.close()

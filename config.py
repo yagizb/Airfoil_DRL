@@ -26,9 +26,9 @@ NUM_CONTROL_POINTS  = 18    # Bezier Curves, control points
 
 # ---------- PPO Training ---------
 #TARGET_KL       = 0.03
-LEARNING_RATE   = 1.0e-04
+LEARNING_RATE   = 0.000096
 CLIP_RANGE      = 0.1
-GAMMA           = 0.99               # Discount factor
+GAMMA           = 0.9582               # Discount factor
 GAE_LAMBDA      = 0.95
 SDE_SAMPLE_FREQ = 5                 # resample noise every ** steps         
 USE_SDE         = False              # (SB3), use_sde controls whether the policy uses State-Dependent Exploration (SDE) instead of the default action noise.
@@ -36,23 +36,24 @@ USE_SDE         = False              # (SB3), use_sde controls whether the polic
                                      #is set to False (which is the default), the policy will use unstructured Gaussian noise for exploration
 # Roll_out        = 2                 # Collects experience from the environment using current policy. 
 # N_STEPS_cal     = 2048/(NUM_ENVS*Roll_out)                                
-N_STEPS         = 128
-BATCH_SIZE      = 64                # Sub-chunks of rollout used during network training.
+N_STEPS         = 256
+BATCH_SIZE      = 1024                # Sub-chunks of rollout used during network training.
 N_EPOCHS        = 5                # How many passes over the same rollout data.
 
 
 MAX_GRAD_NORM   = 0.7434
-ENT_COEF        = 0.01  # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default                        
+ENT_COEF        = 0.00017  # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default                        
 VF_COEF         = 0.5                # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
 VERBOSE         = 1                  # =0 → no output (silent) , =1 → training progress printed (timesteps, FPS, reward, losses).
-TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 33    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
+TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 1    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
 TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train 
 # ---------- SAC Training ---------
 TAU             = 0.005
-ENT_COEF_SAC    = "auto"    
-LEARNING_STARTS = 100    
+LEARNING_STARTS = 100   
+GRADIENT_STEPS  = 2
+TRAIN_FREQ      = 4 
 # ---- SAC-compatible training ----
-BUFFER_SIZE       = 100000
+BUFFER_SIZE       = 88907
 
 # ---------- Logging / Saving ----------
 MAX_EPISODES    = 501
