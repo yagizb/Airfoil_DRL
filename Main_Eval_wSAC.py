@@ -1,11 +1,9 @@
 from stable_baselines3 import SAC
-from stable_baselines3.common.vec_env import VecNormalize,DummyVecEnv,VecMonitor,SubprocVecEnv
+from stable_baselines3.common.vec_env import VecNormalize,DummyVecEnv
 import config
 from AirfoilEnv import AirfoilEnv
 from pathlib import Path
-import gymnasium as gym
 
-from typing import Callable, List
 from Reset import reset_history
 
 def create_env(env_id: int):
@@ -41,16 +39,16 @@ if __name__ == "__main__":
     MODEL_BASENAME = (
         f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
     )
-    #ms = MODEL_BASENAME + "_001"
     # directory where the Python script lives
-    SCRIPT_DIR = Path(__file__).resolve().parent
-    ms = SCRIPT_DIR/"runs" /"optuna"/"airfoil_Re3M_AoA00_CL"/"trial_0048"/"model"
+    # SCRIPT_DIR = Path(__file__).resolve().parent
+    # ms = SCRIPT_DIR/"runs" /"optuna_ppo"/"airfoil_Re3M_AoA00_CL"/"trial_0031"/"model"
+     
+    ms = MODEL_BASENAME + "_001"
     # --- rebuild env and load normalization stats ---
     NUM_ENVS = 1
     vec_env = DummyVecEnv([create_env(i) for i in range(NUM_ENVS)])
-    # Eval env: reward normalization OFF for clearer evaluation
-    #vec_env = SubprocVecEnv([create_env(i) for i in range(config.NUM_ENVS)])
-    vec_env = VecNormalize.load(str(ms.with_suffix(".pkl")), vec_env)
+    #vec_env = VecNormalize.load(str(ms.with_suffix(".pkl")), vec_env)
+    vec_env = VecNormalize.load(ms + ".pkl", vec_env)
     vec_env.training = False       # evaluation mode
     vec_env.norm_reward = False    # don’t normalize rewards during eval
 
