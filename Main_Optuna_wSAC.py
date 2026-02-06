@@ -176,7 +176,7 @@ def objective(trial: optuna.Trial) -> float:
 
     # save trial artifacts (optional)
     model.save(str(trial_root / "model"))
-    train_env.save(str(trial_root / "vecnormalize.pkl"))
+    train_env.save(str(trial_root / "model.pkl"))
 
     train_env.close()
     eval_env.close()
@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
     storage = f"sqlite:///{Path(__file__).resolve().parent / 'optuna_airfoil.db'}"
     study = optuna.create_study(
-        study_name="SAC_airfoil_RE3_AoA00_maxCL_n99",
+        study_name="SAC_airfoil_RE3_AoA00_maxCLCD",
         direction="maximize",
         storage=storage,
         load_if_exists=True,
