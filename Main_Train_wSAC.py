@@ -61,6 +61,7 @@ if __name__ == "__main__":
         learning_starts=config.LEARNING_STARTS,
         train_freq=config.TRAIN_FREQ,
         gradient_steps=config.GRADIENT_STEPS,
+        policy_kwargs=dict(net_arch=[256, 256]),
         verbose=config.VERBOSE,
         seed=config.SEED,
         tensorboard_log="./tensorboard_logs/",
