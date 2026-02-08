@@ -18,7 +18,7 @@ def create_env(env_id: int):
             env_id=env_id,
             n_envs=config.NUM_ENVS,
             work_dir=str(work_dir),    
-            save_data=True,
+            save_data=False,
             fidelity=config.FIDELITY,
             batch_id=0,
             angle_of_attack=config.AOA,
@@ -33,27 +33,24 @@ def create_env(env_id: int):
 
 if __name__ == "__main__":
     config.set_global_seeds(config.SEED)
-
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
+
+  
 
     MODEL_BASENAME = (
         f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
     )
-    # directory where the Python script lives
-    # SCRIPT_DIR = Path(__file__).resolve().parent
-    # ms = SCRIPT_DIR/"runs" /"optuna_ppo"/"airfoil_Re3M_AoA00_CL"/"trial_0031"/"model"
-     
-    ms = MODEL_BASENAME + "_001"
-    # --- rebuild env and load normalization stats ---
+
+    #ms = Path(MODEL_BASENAME + "_001")
+    ms = Path("model")
     NUM_ENVS = 1
     vec_env = DummyVecEnv([create_env(i) for i in range(NUM_ENVS)])
-    #vec_env = VecNormalize.load(str(ms.with_suffix(".pkl")), vec_env)
-    vec_env = VecNormalize.load(ms + ".pkl", vec_env)
+    vec_env = VecNormalize.load(str(ms.with_suffix(".pkl")), vec_env)
+    #vec_env = VecNormalize.load(ms + ".pkl", vec_env)
     vec_env.training = False       # evaluation mode
     vec_env.norm_reward = False    # don’t normalize rewards during eval
 
     # --- load model ---
-    
     model = SAC.load(ms, env=vec_env)
     print("Loaded model with VecNormalize for evaluation")
 
