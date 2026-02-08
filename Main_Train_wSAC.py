@@ -31,8 +31,7 @@ def create_env(env_id):
         return env
     return _init
 
-if __name__ == "__main__":
-         
+if __name__ == "__main__":    
     mp.set_start_method("spawn", force=True)
     config.set_global_seeds(config.SEED)
     trial_number = 48 #### optimum hyperparameters found at trial 48, see Optuna_Results_Summary.txt
