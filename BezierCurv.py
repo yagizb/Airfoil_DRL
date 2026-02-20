@@ -1,7 +1,6 @@
-import os
 import numpy as np
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 # --------- Bezier utilities (vectorized) ---------
 def bernstein_basis(n: int, t: np.ndarray) -> np.ndarray:
@@ -32,6 +31,53 @@ def bezier_curve(control_points: np.ndarray, n_points: int = 96) -> np.ndarray:
     curve = B @ cps                              # (n_points, 2)
     return curve.astype(np.float32)
 
+import numpy as np
+from typing import Tuple
+
+def non_overlap_ok(
+    upper_curve: np.ndarray,
+    lower_curve: np.ndarray,
+    eps: float = 1e-4,
+    n: int = 401,
+) -> Tuple[bool, float]:
+    """
+    Excludes the first and last points of BOTH upper and lower surfaces
+    before performing thickness check.
+
+    Enforces:
+        y_upper(x) >= y_lower(x) + eps
+
+    Returns:
+        (ok, min_thickness)
+    """
+
+    upper_curve = np.asarray(upper_curve, dtype=np.float64)
+    lower_curve = np.asarray(lower_curve, dtype=np.float64)
+
+    # ---- Exclude first and last surface points ----
+    if upper_curve.shape[0] > 2:
+        upper_curve = upper_curve[1:-1]
+    if lower_curve.shape[0] > 2:
+        lower_curve = lower_curve[1:-1]
+
+    xu, yu = upper_curve[:, 0], upper_curve[:, 1]
+    xl, yl = lower_curve[:, 0], lower_curve[:, 1]
+
+    # Common x-grid
+    x = np.linspace(0.0, 1.0, n)
+
+    # Sort by x for interpolation
+    iu = np.argsort(xu)
+    il = np.argsort(xl)
+
+    yu_i = np.interp(x, xu[iu], yu[iu])
+    yl_i = np.interp(x, xl[il], yl[il])
+
+    t = yu_i - yl_i
+    tmin = float(np.min(t))
+
+    return (tmin >= eps), tmin
+
 # --------- Airfoil generator ---------
 def generate_airfoil(
     airfoil_file: str,
@@ -41,14 +87,23 @@ def generate_airfoil(
     lock_endpoints: bool = True,
     default_cp_path: str = "initial_control_points.dat",
     return_array: bool = False,
-    output_dir: Optional[str] = None,   
+    output_dir: Optional[str] = None,
+
+    # ---- NEW: overlap constraint knobs ----
+    enforce_non_overlap: bool = True,
+    thickness_eps: float = 1e-4,
+    thickness_grid_n: int = 401,
+    raise_on_overlap: bool = True,
 ):
     """
-    Build airfoil from Bezier control points.
+    Build airfoil from Bezier control points with optional non-overlap constraint.
 
-    airfoil_file: base name (no extension), e.g. "airfoil"
-    output_dir:   directory to write into (e.g. per-env work_dir).
-                  If None, uses current working directory.
+    Non-overlap constraint:
+        y_upper(x) >= y_lower(x) + thickness_eps  on a common x-grid.
+
+    If enforce_non_overlap and violation happens:
+      - if raise_on_overlap: raises ValueError 
+      - else: writes anyway, but returns info in the string (not recommended for training)
 
     Writes:  <output_dir>/<airfoil_file>.dat
     Returns: airfoil_data_str (and optionally the (N,2) array if return_array=True)
@@ -87,8 +142,32 @@ def generate_airfoil(
     lower_curve = bezier_curve(lower_cps, n_points=n_samples_lower)
 
     # Reverse if your convention wants TE->LE etc.
-    upper_curve = upper_curve[::-1]   # now upper: TE -> LE
-    lower_curve = lower_curve[::-1]   # now lower: TE -> LE (comment in your code was flipped)
+    upper_curve = upper_curve[::-1]   # upper: TE -> LE
+    lower_curve = lower_curve[::-1]   # lower: TE -> LE
+
+    # ---- enforce non-overlap / positive thickness ----
+    if enforce_non_overlap:
+        ok, tmin = non_overlap_ok(
+            upper_curve, lower_curve,
+            eps=thickness_eps,
+            n=thickness_grid_n,
+        )
+        if not ok:
+            msg = (
+                f"Airfoil self-intersection / overlap detected: "
+                f"min_thickness={tmin:.6e} < eps={thickness_eps:.6e}. "
+                f"Rejecting geometry."
+            )
+            if raise_on_overlap:
+                raise ValueError(msg)
+            else:
+                # keep going but include warning in output string
+                # (not recommended for RL; better to reject)
+                warning_line = f"# WARNING: {msg}\n"
+        else:
+            warning_line = ""
+    else:
+        warning_line = ""
 
     # Stack into a single loop without duplicating the leading edge point
     airfoil = np.vstack([upper_curve, lower_curve[1:]])
@@ -106,7 +185,7 @@ def generate_airfoil(
     np.savetxt(out_path, airfoil, fmt="%.6f")
 
     # Build string for env logging
-    airfoil_data_str = "\n".join(
+    airfoil_data_str = warning_line + "\n".join(
         " ".join(f"{x:.6f}" for x in row) for row in airfoil
     )
 
