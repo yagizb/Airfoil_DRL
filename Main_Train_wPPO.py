@@ -9,76 +9,107 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecNorm
 import config
 from AirfoilEnv import AirfoilEnv
 from AirfoilCallBacks import TensorboardAeroCallback
-
 from Reset import reset_history
-import os
 
-def make_env(env_id: int, seed: int):
+
+def make_env(env_id: int, run_root: Path, hist_root: Path, seed: int):
     def _init():
-        script_dir = Path(__file__).resolve().parent
-        root = script_dir / getattr(config, "WORK_ROOT", "runs")
-
-        # IMPORTANT: env-specific dir so subprocesses never clash
-        work_dir = root / f"env_{env_id}"
+        work_dir = run_root / f"env_{env_id}"
         work_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Make sure history dirs exist (important when save_data=True)
+        (hist_root / "airfoils").mkdir(parents=True, exist_ok=True)
+        (hist_root / "clcd").mkdir(parents=True, exist_ok=True)
 
         env = AirfoilEnv(
             env_id=env_id,
             n_envs=config.NUM_ENVS,
             work_dir=str(work_dir),
-            save_data=False,
+            save_data=True,                 # OK because history dirs are trial-local
             fidelity=config.FIDELITY,
             batch_id=0,
             angle_of_attack=config.AOA,
             Re_number=config.RE,
             scaling_factor=config.ACTION_SCALE,
             airfoil_file=config.AIRFOIL_FILE,
-            max_steps=config.MAX_STEPS,
+            max_steps=config.MAX_STEPS,      # if MAX_STEPS=1, each episode=1 step (fine)
             max_no_improvement_episodes=config.MAX_NO_IMPROV,
             objective=config.OBJECTIVE,
+            airfoil_history_dir=str(hist_root / "airfoils"),
+            cl_cd_history_dir=str(hist_root / "clcd"),
         )
         env.reset(seed=seed + env_id)
         return env
     return _init
 
 
-def build_vec_env(n_envs: int, seed: int, use_subproc: bool) -> VecNormalize:
-    env_fns: List[Callable[[], gym.Env]] = [make_env(i, seed) for i in range(n_envs)]
+def build_vec_env(
+    n_envs: int,
+    run_root: Path,
+    hist_root: Path,
+    seed: int,
+    use_subproc: bool,
+) -> VecNormalize:
 
-    if use_subproc:
-        venv = SubprocVecEnv(env_fns, start_method="spawn")
-    else:
-        venv = DummyVecEnv(env_fns)
+    env_fns: List[Callable[[], gym.Env]] = [
+        make_env(i, run_root, hist_root, seed) for i in range(n_envs)
+    ]
 
+    venv = SubprocVecEnv(env_fns, start_method="spawn") if use_subproc else DummyVecEnv(env_fns)
     venv = VecMonitor(venv)
-
-    # Fresh normalization stats (START FROM SCRATCH)
     venv = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=10.0)
-
-    # Seed vec env + action space etc.
     venv.seed(seed)
     return venv
 
+def _params() -> dict:
+    return {
+        "learning_rate": config.LEARNING_RATE,
+        "batch_size": config.BATCH_SIZE,
+        "gamma": config.GAMMA,
+        "gae_lambda": config.GAE_LAMBDA,
+        "ent_coef": config.ENT_COEF,
+        "vf_coef": config.VF_COEF,
+        "max_grad_norm": config.MAX_GRAD_NORM,
+        "gae_lambda": config.GAE_LAMBDA,
+        "n_epochs": config.N_EPOCHS,
+        "clip_range": config.CLIP_RANGE,
+        "use_sde": config.USE_SDE,  
+        "policy_kwargs": {"net_arch": [256, 256]},
+    }
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
+    config.set_global_seeds(config.SEED)
 
-    # Global seeds
-    config.set_global_seeds(config.SEED)   
-    
-    # IMPORTANT: ensure no old history influences your run
-    reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
-
-    MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
-
-    trial_number = 92 
+    trial_number = 92
     SEED = int(config.SEED) + trial_number
-    
+
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    base_root = SCRIPT_DIR / "runs"   # or Path(getattr(config, "WORK_ROOT", "runs")).resolve()
+
+    model_basename = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
+
+    trial_root = base_root / model_basename / f"trial_{trial_number:04d}_Roll02"
+    run_root = trial_root / "work"
+    hist_root = trial_root / "history"
+
+    # Ensure these exist BEFORE subprocesses start
+    run_root.mkdir(parents=True, exist_ok=True)
+    hist_root.mkdir(parents=True, exist_ok=True)
+
+    # Clear history directories (only your CSV/airfoil dumps)
+    reset_history(str(hist_root / "airfoils"), str(hist_root / "clcd"))
+
+    # 1) Create base env (NO VecNormalize yet)
     train_env = build_vec_env(
         n_envs=config.NUM_ENVS,
+        run_root=run_root,
+        hist_root=hist_root,
         seed=SEED,
         use_subproc=True,
     )
+
+    params = _params()
 
     model = PPO(
         "MlpPolicy",
@@ -87,12 +118,13 @@ if __name__ == "__main__":
         clip_range=config.CLIP_RANGE,
         gamma=config.GAMMA,
         gae_lambda=config.GAE_LAMBDA,
-        use_sde=config.USE_SDE,
         n_steps=config.N_STEPS,
+        n_epochs=config.N_EPOCHS,
         batch_size=config.BATCH_SIZE,
         ent_coef=config.ENT_COEF,
         vf_coef=config.VF_COEF,
         max_grad_norm=config.MAX_GRAD_NORM,
+        use_sde=config.USE_SDE,
         policy_kwargs=dict(net_arch=[256, 256]),
         verbose=config.VERBOSE,
         seed=SEED,
@@ -101,17 +133,15 @@ if __name__ == "__main__":
 
     cb = TensorboardAeroCallback(log_every=100)
 
-    # Fresh training from timestep 0
     model.learn(
         total_timesteps=config.TOTAL_TIMESTEPS,
         callback=cb,
-        tb_log_name="Roll_001",
-        reset_num_timesteps=True,
+        tb_log_name=f"trial_{trial_number:04d}",
     )
 
-    print("Learned")
+    # Save artifacts (be explicit with filenames)
+    model.save(str(trial_root / "model"))                 # -> model.zip
+    train_env.save(str(trial_root / "model.pkl"))  # -> vecnormalize.pkl
 
-    ms = MODEL_BASENAME + "_001"
-    model.save(str(ms))
-    train_env.save(str(ms) + ".pkl")
     train_env.close()
+    

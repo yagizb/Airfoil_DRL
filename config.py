@@ -34,8 +34,7 @@ GAMMA           = 0.9707318467435435              # Discount factor
 LEARNING_RATE   = 0.000010685706577230597
 MAX_GRAD_NORM   = 0.39954431529111384
 N_EPOCHS        = 20                # How many passes over the same rollout data.
-N_STEPS         = 256
-                      
+N_STEPS         = 256                   
 VF_COEF         = 0.5657910164048413               # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
 
 SDE_SAMPLE_FREQ = 0                 # resample noise every ** steps         
@@ -45,13 +44,13 @@ USE_SDE         = False              # (SB3), use_sde controls whether the polic
 # Roll_out        = 2                 # Collects experience from the environment using current policy. 
 # N_STEPS_cal     = 2048/(NUM_ENVS*Roll_out)                                
             # =0 → no output (silent) , =1 → training progress printed (timesteps, FPS, reward, losses).
-TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 1    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
+TOTAL_TIMESTEPS = N_STEPS * NUM_ENVS * 3    ## Rollout size = N_STEPS × NUM_ENVS = 2048 transitions     
 VERBOSE         = 1   
 TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train 
 
 # ---------- Logging / Saving ----------
-MAX_EPISODES    = 2001
-SAVE_INTERVAL   = 1002
+MAX_EPISODES    = 3001
+SAVE_INTERVAL   = 10002
 
 LOG_DIR = "tb_logs"                  # TensorBoard log dir
 BEST_DIR = os.path.join("./logs", BASENAME)
