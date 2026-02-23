@@ -32,25 +32,23 @@ def create_env(env_id: int):
     return _init
 
 if __name__ == "__main__":
-    config.RE = 3.0E6
-    config.AOA = 0.0
-    config.OBJECTIVE = "cl"
-    MODEL_BASENAME = (
-        f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
-    )
-    AIRFOIL_HISTORY_DIR = (f"airfoil_history_{MODEL_BASENAME}")
-    CL_CD_HISTORY_DIR   = (f"cl_cd_history_{MODEL_BASENAME}")
-    reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
+    RE = 3.0E6
+    AOA = 0.0
+    OBJECTIVE = "cl"
+    BASENAME = (f"Re{int(RE/1.e06)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}")
 
-    #ms = MODEL_BASENAME + "_001"
-    # directory where the Python script lives
+    AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
+    CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
+    reset_history(AIRFOIL_HISTORY_DIR, CL_CD_HISTORY_DIR)
+    TAG = "001"
+   
+    #ms = Path(MODEL_BASENAME + "_001")
     SCRIPT_DIR = Path(__file__).resolve().parent
-    ms = SCRIPT_DIR/"runs" /MODEL_BASENAME/"trial_0048"/"model"
-    
-    # --- rebuild env and load normalization stats ---
+    ms = SCRIPT_DIR/f"airfoil_{BASENAME}_{TAG}"
     NUM_ENVS = 1
     vec_env = DummyVecEnv([create_env(i) for i in range(NUM_ENVS)])
     vec_env = VecNormalize.load(str(ms.with_suffix(".pkl")), vec_env)
+    #vec_env = VecNormalize.load(ms + ".pkl", vec_env)
     vec_env.training = False       # evaluation mode
     vec_env.norm_reward = False    # don’t normalize rewards during eval
 
@@ -76,7 +74,7 @@ if __name__ == "__main__":
                 break
 
         if episode % config.SAVE_INTERVAL == 0:
-            model.save(f"{MODEL_BASENAME}_ep{episode}")
+            model.save(f"airfoil_{BASENAME}_{TAG}_ep{episode}")
             print(f"Saved model at episode {episode}")
 
         if any(info.get("no_imp_eps", False) for info in infos):
