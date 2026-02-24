@@ -4,12 +4,37 @@ from CFL3DSubJob import kill_job
 from typing import Tuple, Optional
 from pathlib import Path
 
-def _count_ready(shared_root: Path, n_envs: int) -> int:
-    c = 0
+from pathlib import Path
+from typing import Tuple
+
+def count_ready_failed(shared_root: Path, n_envs: int) -> Tuple[int, int]:
+    """
+    Count how many env_i have:
+      - cfl3d_ready.flag
+      - cfl3d_failed.flag
+
+    Returns
+    -------
+    (n_ready, n_failed)
+    """
+    n_ready = 0
+    n_failed = 0
+
     for i in range(n_envs):
-        if (shared_root / f"env_{i}" / "cfl3d_ready.flag").exists():
-            c += 1
-    return c
+        env_dir = shared_root / f"env_{i}"
+        if not env_dir.exists():
+            continue
+
+        ready_flag = env_dir / "cfl3d_ready.flag"
+        failed_flag = env_dir / "cfl3d_failed.flag"
+
+        # IMPORTANT: failed overrides ready
+        if failed_flag.exists():
+            n_failed += 1
+        elif ready_flag.exists():
+            n_ready += 1
+
+    return n_ready, n_failed
 
 def wait_ready_stable(shared_root: Path, n_envs: int, stable_s: float = 5.0,
                        poll_s: float = 2.0, max_wait_s: float = 50.0, vprint=None):
@@ -22,7 +47,7 @@ def wait_ready_stable(shared_root: Path, n_envs: int, stable_s: float = 5.0,
     t0 = time.time()
 
     while True:
-        cur = _count_ready(shared_root, n_envs)
+        cur = count_ready_failed(shared_root, n_envs)
         if cur == last:
             stable += poll_s
         else:

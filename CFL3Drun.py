@@ -1,13 +1,14 @@
 from CFL3DMesh import cfl3d_mesh
 from CFL3DSubJob import main_cfl3d, kill_job
-from CFL3DConver import follow_cfl3d_output, check_cfl3d_error, cfl3d_out_init_crashed
+from CFL3DConver import follow_cfl3d_output, check_cfl3d_error, cfl3d_out_init_crashed,count_ready_failed
 from CFL3DPrep import update_cfl3d_inp, copy_main_inputs, clean_env
 
 import time
 import os
 import subprocess
 from pathlib import Path
-
+import config
+from typing import Optional
 
 def _safe_unlink(p: Path, vprint=None):
     try:
@@ -18,6 +19,48 @@ def _safe_unlink(p: Path, vprint=None):
         if vprint:
             vprint(f"Could not remove {p}: {e}")
 
+def _read_leader_env_id(leader_flag: Path) -> Optional[int]:
+    try:
+        return int(leader_flag.read_text().strip())
+    except Exception:
+        return None
+
+def _try_become_leader(leader_flag: Path, env_id: int, vprint=None) -> bool:
+    # only succeeds if leader_flag does not exist
+    try:
+        fd = os.open(leader_flag, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(env_id).encode())
+        os.close(fd)
+        if vprint:
+            vprint(f"[Env {env_id}] Took leadership.")
+        return True
+    except FileExistsError:
+        return False
+
+def _force_replace_leader(leader_flag: Path, env_id: int, vprint=None):
+    # best-effort replace (race-safe enough for this use)
+    try:
+        leader_flag.write_text(str(env_id) + "\n")
+        if vprint:
+            vprint(f"[Env {env_id}] Replaced leader (forced).")
+    except Exception as e:
+        if vprint:
+            vprint(f"[Env {env_id}] Failed to replace leader: {e}")
+
+def _leader_is_failed(shared_root: Path, leader_id: Optional[int]) -> bool:
+    if leader_id is None:
+        return True
+    env_leader = shared_root / f"env_{leader_id}"
+    # if leader env has failed flag, treat as failed
+    return (env_leader / "cfl3d_failed.flag").exists()
+
+def _pick_new_leader_from_ready(shared_root: Path, n_envs: int) -> Optional[int]:
+    # choose smallest env_id with READY and not FAILED
+    for i in range(n_envs):
+        env_i = shared_root / f"env_{i}"
+        if (env_i / "cfl3d_ready.flag").exists() and not (env_i / "cfl3d_failed.flag").exists():
+            return i
+    return None
 
 def _wait_done_flag(done_flag: Path, timeout: float = 3600.0, poll: float = 2.0, vprint=None):
     """Wait until leader writes DONE/TIMEOUT/FAILED into the shared done_flag."""
@@ -64,7 +107,6 @@ def cfl3d_airfoil(
     work_dir = Path(work_dir)
     ## shared_root = work_dir.parent   it was done for OPTUNA
     shared_root = work_dir.parent
-    s_name="Main_airfoil_cfl3d_optuna.sh"
 
     # flags
     leader_flag = shared_root / "cfl3d_leader.flag"
@@ -161,8 +203,51 @@ def cfl3d_airfoil(
         # Leader submits job, others wait for done_flag STARTED/DONE
         if is_leader:
             vprint(f"[Env {env_id}] Submitting CFL3D job...")
-            job_id, job_state = main_cfl3d(script_name=s_name)
 
+            # --- Gather window: wait for READY count to stabilize ---
+            gather_timeout = 20.0   # seconds (tune 10–30)
+            stable_for     = 4.0    # seconds stable before we submit
+            poll           = 0.5
+
+            t0 = time.time()
+            last_ready = -1
+            last_change = time.time()
+
+            while True:
+                n_ready, n_failed = count_ready_failed(shared_root, n_envs)
+
+                if n_ready != last_ready:
+                    last_ready = n_ready
+                    last_change = time.time()
+                    vprint(f"[Leader {env_id}] READY now: {n_ready} / {n_envs} (failed={n_failed})")
+
+                # stop early if everyone is ready
+                if n_ready >= n_envs:
+                    break
+
+                # submit once READY count hasn't changed for stable_for seconds
+                if time.time() - last_change >= stable_for and n_ready > 0:
+                    break
+
+                # hard timeout
+                if time.time() - t0 >= gather_timeout:
+                    break
+
+                time.sleep(poll)
+
+            if n_ready == 0:
+                vprint(f"[Env {env_id}] No READY envs -> not submitting.")
+                failed_flag.write_text("FAILED_NO_READY\n")
+                status_flag.write_text("FAILED_NO_READY\n")
+                done_flag.write_text("FAILED_NO_READY\n")
+                _safe_unlink(leader_flag, vprint=vprint)
+                return eps, eps
+
+            ntasks = 4 * n_ready
+            vprint(f"[Leader {env_id}] Submitting batch for n_ready={n_ready} -> ntasks={ntasks}")
+
+            job_id, job_state = main_cfl3d(script_name=config.CFL3D_SCRIPT, ntasks=ntasks)
+            
             if not job_id or job_state != "R":
                 vprint(f"[Env {env_id}] Submit FAILED (job_id={job_id}, state={job_state})")
                 failed_flag.write_text("FAILED_CFL3D_SUBMIT\n")
@@ -244,6 +329,19 @@ def cfl3d_airfoil(
         Cl, Cd = Cl_new, Cd_new
         status_flag.write_text("OK\n")
 
+        # --- Leader failover before Step 5 ---
+        # If current leader failed, elect a new leader among READY envs.
+        leader_id = _read_leader_env_id(leader_flag) if leader_flag.exists() else None
+        if _leader_is_failed(shared_root, leader_id):
+            new_leader = _pick_new_leader_from_ready(shared_root, n_envs)
+            if new_leader is not None:
+                if env_id == new_leader:
+                    # force takeover (overwrite leader_flag)
+                    _force_replace_leader(leader_flag, env_id, vprint=vprint)
+                    is_leader = True
+                    vprint(f"[Env {env_id}] Failover: became new leader before Step 5.")
+                else:
+                    vprint(f"[Env {env_id}] Failover: leader failed; candidate leader is env_{new_leader}.")
         # Step 5: leader waits for all READY envs to finish (conv or failed), then scancel and DONE
         if is_leader and job_id is not None:
             timeout = 7200.0
