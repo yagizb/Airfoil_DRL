@@ -32,10 +32,8 @@ def create_env(env_id: int):
     return _init
 
 if __name__ == "__main__":
-    RE = 3.0E6
-    AOA = 0.0
-    OBJECTIVE = "cl"
-    BASENAME = (f"Re{int(RE/1.e06)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}")
+   
+    BASENAME = (f"Re{int(config.RE/1.e06)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}")
 
     AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
     CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
