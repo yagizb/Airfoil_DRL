@@ -6,8 +6,8 @@ import random
 SEED            = 42
 # ---------- Environment ----------
 NUM_ENVS        = 32
-OBJECTIVE       = "cl"      # "cl" or "cl_cd" 
-FIDELITY        = 0         # 0=Xfoil, 1=RANS, 2=LES
+OBJECTIVE       = "cl_cd"      # "cl" or "cl_cd" 
+FIDELITY        = 1         # 0=Xfoil, 1=RANS, 2=LES
 TRAIN           = "000"      ## 0=Xfoil, 1=RANS, 2=LES 
 AOA             = 0       # Angle of attack (degrees)
 RE              = 3.0E6     # Reynolds Number
@@ -19,6 +19,7 @@ MAX_STEPS       = 1         # ??????? Episode always truncated at step 1: max_st
 MAX_NO_IMPROV   = 20000
 
 WORK_ROOT = "runs"
+CFL3D_SCRIPT = "Main_airfoil_cfl3d.sh"
 BASENAME = (f"Re{int(RE/1.e06)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}")
 AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
 CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
@@ -26,13 +27,13 @@ NUM_CONTROL_POINTS  = 18    # Bezier Curves, control points
 
 # ---------- SAC Training ---------
 BATCH_SIZE      = 1024                # Sub-chunks of rollout used during network training
-BUFFER_SIZE     = 88907
-ENT_COEF        = 0.00017056535745467157 # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default
-GAMMA           = 0.9581661681401709             # Discount factor
-GRADIENT_STEPS  = 2
-LEARNING_RATE   = 0.00009623046369670056
-TAU             = 0.0031577581109901317
-TRAIN_FREQ      = 4 
+BUFFER_SIZE     = 33597
+ENT_COEF        = 0.01845 # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default
+GAMMA           = 0.95767             # Discount factor
+GRADIENT_STEPS  = 4
+LEARNING_RATE   = 0.00006
+TAU             = 0.00347
+TRAIN_FREQ      = 2 
 LEARNING_STARTS = 100   
 
 # Roll_out        = 2                 # Collects experience from the environment using current policy. 
