@@ -38,9 +38,10 @@ def create_env(env_id: int):
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    config.set_global_seeds(config.SEED)
-    trial_number = 48 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
+    
+    trial_number = 88 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
     SEED = int(config.SEED) + trial_number
+    config.set_global_seeds(config.SEED)
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
 
     MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
