@@ -343,19 +343,19 @@ def cfl3d_airfoil(
                 else:
                     vprint(f"[Env {env_id}] Failover: leader failed; candidate leader is env_{new_leader}.")
         # Step 5: leader waits for all READY envs to finish (conv or failed), then scancel and DONE
-        if is_leader and job_id is not None:
+        if is_leader:
             timeout = 7200.0
             poll = 2.0
             t0 = time.time()
 
-            # Track only envs that were READY (this avoids waiting on envs that never reached READY)
+            # Track only envs that were READY (avoid waiting on never-ready envs)
             target_envs = []
             for i in range(n_envs):
                 env_i = shared_root / f"env_{i}"
                 if (env_i / "cfl3d_ready.flag").exists():
                     target_envs.append(i)
 
-            vprint(f"[Leader {env_id}] Tracking READY envs: {target_envs}")
+            vprint(f"[Leader {env_id}] Tracking READY envs: {target_envs} (job_id={job_id})")
 
             while True:
                 pending = []
@@ -368,24 +368,30 @@ def cfl3d_airfoil(
                     pending.append(i)
 
                 if not pending:
-                    vprint(f"[Leader {env_id}] All done -> scancel {job_id}")
-                    try:
-                        kill_job(job_id)
-                    finally:
-                        done_flag.write_text("DONE\n")
+                    vprint(f"[Leader {env_id}] All READY envs have terminal flags.")
+                    # If we know the SLURM job id, cancel it (optional; safe)
+                    if job_id is not None:
+                        try:
+                            vprint(f"[Leader {env_id}] scancel {job_id}")
+                            kill_job(job_id)
+                        except Exception as e:
+                            vprint(f"[Leader {env_id}] kill_job failed: {e}")
+                    # CRITICAL: ALWAYS wake everyone up
+                    done_flag.write_text("DONE\n")
                     break
 
                 if time.time() - t0 > timeout:
-                    vprint(f"[Leader {env_id}] TIMEOUT pending={pending} -> scancel {job_id}")
-                    try:
-                        kill_job(job_id)
-                    finally:
-                        done_flag.write_text("TIMEOUT\n")
+                    vprint(f"[Leader {env_id}] TIMEOUT pending={pending}")
+                    if job_id is not None:
+                        try:
+                            kill_job(job_id)
+                        except Exception as e:
+                            vprint(f"[Leader {env_id}] kill_job failed: {e}")
+                    done_flag.write_text("TIMEOUT\n")
                     break
 
                 time.sleep(poll)
 
-            # leader can release lock for next call (optional)
             _safe_unlink(cleanup_lock, vprint=vprint)
 
         # -------------------------
