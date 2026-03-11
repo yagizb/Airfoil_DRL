@@ -6,7 +6,7 @@ import random,os
 SEED            = 42
 # ---------- Environment ----------
 NUM_ENVS        = 32
-OBJECTIVE       = "cl"      # "cl" or "cl_cd" 
+OBJECTIVE       = "cl_cd"      # "cl" or "cl_cd" 
 FIDELITY        = 1         # 0=Xfoil, 1=RANS, 2=LES
 TRAIN           = "000"      ## 0=Xfoil, 1=RANS, 2=LES 
 AOA             = 0.0       # Angle of attack (degrees)
@@ -27,17 +27,17 @@ NUM_CONTROL_POINTS  = 18    # Bezier Curves, control points
 
 # ---------- PPO Training ---------
 #TARGET_KL       = 0.03
-BATCH_SIZE      = 32                # Sub-chunks of rollout used during network training.
-CLIP_RANGE      = 0.2240
-ENT_COEF        = 0.0803 # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default  
-GAE_LAMBDA      = 0.9469
-GAMMA           = 0.9864           # Discount factor
-LEARNING_RATE   = 0.00007
-MAX_GRAD_NORM   = 0.5899
-N_EPOCHS        = 25               # How many passes over the same rollout data.
-N_STEPS         = 64
+BATCH_SIZE      = 128               # Sub-chunks of rollout used during network training.
+CLIP_RANGE      = 0.2911
+ENT_COEF        = 0.0017                  # 0.02 - 0.05 - 0.1             # encourage exploration --- 0.025 ent_coef=0.0,   # ← default  
+GAE_LAMBDA      = 0.9083
+GAMMA           = 0.9530          # Discount factor
+LEARNING_RATE   = 0.000083
+MAX_GRAD_NORM   = 0.5181
+N_EPOCHS        = 20               # How many passes over the same rollout data.
+N_STEPS         = 256
                       
-VF_COEF         = 0.9907             # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
+VF_COEF         = 0.5382             # how much the critic matters in training ---- 0.1  vf_coef=0.5,    # ← default
 
 SDE_SAMPLE_FREQ = 0                 # resample noise every ** steps         
 USE_SDE         = False              # (SB3), use_sde controls whether the policy uses State-Dependent Exploration (SDE) instead of the default action noise.
