@@ -12,7 +12,11 @@ venv/
 runs/
 outputs/
 results/
-
+airfoil_history*
+cl_cd_history*
+airfoil_*.zip
+*.dat
+*.csv
 # models / checkpoints
 *.ckpt
 *.pt
