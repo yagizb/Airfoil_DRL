@@ -7,7 +7,7 @@ SEED            = 42
 # ---------- Environment ----------
 NUM_ENVS        = 32
 OBJECTIVE       = "cl"      # "cl" or "cl_cd" 
-FIDELITY        = 0         # 0=Xfoil, 1=RANS, 2=LES
+FIDELITY        = 1         # 0=Xfoil, 1=RANS, 2=LES
 TRAIN           = "000"      ## 0=Xfoil, 1=RANS, 2=LES 
 AOA             = 0.0       # Angle of attack (degrees)
 RE              = 3.0E6     # Reynolds Number

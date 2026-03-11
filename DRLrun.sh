@@ -17,7 +17,7 @@
 
 ### Queue and account
 #SBATCH --qos=gp_bsccase
-#SBATCH --time=0-01:00:00
+#SBATCH --time=2-00:00:00
 
 #SBATCH --account=bsc21     
 
