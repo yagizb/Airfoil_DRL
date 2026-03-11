@@ -73,7 +73,7 @@ def get_job_state(job_id):
     except subprocess.CalledProcessError:
         return None
     
-def wait_until_job_running(job_id, poll_interval=5, timeout=1800):
+def wait_until_job_running(job_id, poll_interval=5, timeout=7200):
     print(f" Waiting for job {job_id} to start...")
     start_time = time.time()
     

@@ -39,9 +39,9 @@ def create_env(env_id: int):
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     
-    trial_number = 88 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
+    trial_number = 110 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
     SEED = int(config.SEED) + trial_number
-    config.set_global_seeds(config.SEED)
+    config.set_global_seeds(SEED)
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
 
     MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
@@ -72,10 +72,10 @@ if __name__ == "__main__":
 
     cb = TensorboardAeroCallback(log_every=100)
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="Roll_001")
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="XFOIL001_SACtr0110_R010")
     print("Learned")
 
-    ms = MODEL_BASENAME + "_001"
+    ms = MODEL_BASENAME + "_XFOIL001_SACtr0110_R010"
         
     model.save(ms)
     train_env.save(ms + ".pkl")

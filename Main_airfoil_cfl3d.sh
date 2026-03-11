@@ -5,10 +5,9 @@
 #SBATCH --error=error.err
 #SBATCH --qos=gp_bsccase
 #SBATCH --account=bsc21
-#SBATCH --time=00:45:00
+#SBATCH --time=00:30:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-
 
 module purge
 module load intel/2024.0
@@ -31,15 +30,8 @@ echo "===================================="
 ROOT="runs"
 MPI_PER_ENV=4
 
-# ALWAYS write batch done flag even on early exit / errors
-cleanup_done_flag() {
-  mkdir -p "${ROOT}"
-  echo "BATCH_DONE $(date) SLURM_JOB_ID=${SLURM_JOB_ID:-NA}" > "${ROOT}/cfl3d_done.flag"
-}
-trap cleanup_done_flag EXIT
-
 if [[ -z "${SLURM_NTASKS:-}" ]]; then
-  echo "ERROR: SLURM_NTASKS is not set"
+  echo "ERROR: SLURM_NTASKS is not set. Are you running inside SLURM?"
   exit 1
 fi
 
@@ -90,7 +82,7 @@ for env_dir in "${run_list[@]}"; do
     fi
 
     # Clear only runtime flag from previous attempt
-    rm -f cfl3d_failed.flag cfl3d_conv.flag 
+    rm -f cfl3d_failed.flag
 
     # Run solver
     srun --exclusive --ntasks=${MPI_PER_ENV} --cpu-bind=none \
@@ -99,12 +91,13 @@ for env_dir in "${run_list[@]}"; do
      cfl3d_mpi < cfl3d.inp
     rc=$?
 
-    if [[ $rc -eq 0 ]]; then
-      echo "OK rc=0 $(date)" > cfl3d_conv.flag
-    else
-      echo "FAILED rc=$rc $(date)" > cfl3d_failed.flag
+    if [[ $rc -ne 0 ]]; then
+      echo "[${env_name}] srun failed rc=$rc"
+      echo "FAILED_SRUN_RC $rc" > cfl3d_failed.flag
+      exit 0
     fi
-    
+
+    echo "[${env_name}] finished CFL3D (rc=0)"
   ) &
 done
 
