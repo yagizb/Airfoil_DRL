@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=OPTX_POP_RE3_CL
+#SBATCH --job-name=POP_MaxCL_Re3_AoA00
 #SBATCH --chdir=.
 
 ### Output and error files directory
@@ -17,7 +17,7 @@
 
 ### Queue and account
 #SBATCH --qos=gp_bsccase
-#SBATCH --time=2-00:00:00
+#SBATCH --time=0-01:00:00
 
 #SBATCH --account=bsc21     
 
@@ -28,4 +28,4 @@ export PYTHONNOUSERSITE=1
 source ~/venvs/airfoil_drl/bin/activate
 
 ##srun -n 1 python3 Main_Train.py > rlsod2d.log 2>&1
-python3 Main_Optuna.py > rlsod2d.log 2>&1
+python3 Main_Train_wPPO.py > rlsod2d.log 2>&1

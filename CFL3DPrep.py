@@ -1,7 +1,5 @@
 from pathlib import Path
 import shutil
-import shutil
-from pathlib import Path
 
 def clean_env(env_dir):
     """

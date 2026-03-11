@@ -1,32 +1,43 @@
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 
-def submit_job(script_name):
-    # Absolute path to script
-    script_path = Path(script_name).resolve()
+def submit_job(script_path: Path, ntasks: int) -> Optional[str]:
+    """
+    Submit sbatch with dynamic resources, overriding #SBATCH lines in the script.
+    """
+    script_path = Path(script_path).resolve()
     script_dir = script_path.parent
 
-    print(f"Submitting job from directory: {script_dir}")
-    print(f"Script path: {script_path}")
+    print(f"[submit_job] Submitting from directory: {script_dir}")
+    print(f"[submit_job] Script path: {script_path}")
+    print(f"[submit_job] ntasks={ntasks}")
 
-    # Always run sbatch inside the folder where the script lives
+    cmd = [
+        "sbatch",
+        "--nodes=1",
+        f"--ntasks={ntasks}",
+        f"--ntasks-per-node={ntasks}",
+        script_path.name,
+    ]
+
     result = subprocess.run(
-        ["sbatch", script_path.name],
+        cmd,
         cwd=str(script_dir),
         capture_output=True,
         text=True
     )
 
     if result.returncode == 0:
-        print(f"Job {script_path.name} submitted successfully:")
-        print(result.stdout)
+        print("[submit_job] Submitted successfully:")
+        print(result.stdout.strip())
         job_id = result.stdout.strip().split()[-1]
         return job_id
-    else:
-        print(f"Error submitting job {script_path.name}:")
-        print(result.stderr)
-        return None
+
+    print("[submit_job] Submission FAILED:")
+    print(result.stderr.strip())
+    return None
 
 def check_job_status(job_id):
     # Check if the job with the given JOBID is still running
@@ -62,7 +73,7 @@ def get_job_state(job_id):
     except subprocess.CalledProcessError:
         return None
     
-def wait_until_job_running(job_id, poll_interval=5, timeout=1800):
+def wait_until_job_running(job_id, poll_interval=5, timeout=7200):
     print(f" Waiting for job {job_id} to start...")
     start_time = time.time()
     
@@ -110,24 +121,22 @@ def kill_job(job_id):
 
 ### CFL3D PART ##############################
 
-def main_cfl3d(script_name):
-    """
-    Submit the CFL3D job using the main-folder sbatch script.
 
-    We compute the project root as the directory of THIS Python file
-    (where this code lives), and then join script_name to it.
+def main_cfl3d(script_name: str, ntasks: int) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Submit the CFL3D job using the sbatch script located next to this python file,
+    overriding ntasks dynamically.
     """
     project_root = Path(__file__).resolve().parent
     script_path = project_root / script_name
 
     if not script_path.exists():
-        print(f"sbatch script not found: {script_path}")
+        print(f"[main_cfl3d] sbatch script not found: {script_path}")
         return None, None
 
-    job_id = submit_job(script_path)
-
+    job_id = submit_job(script_path, ntasks)
     if not job_id:
-        print("Failed to submit job.")
+        print("[main_cfl3d] Failed to submit job.")
         return None, None
 
     job_state = wait_until_job_running(job_id)
