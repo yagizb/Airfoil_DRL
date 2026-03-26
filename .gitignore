@@ -1,5 +1,13 @@
 __pycache__/
 *.pyc
+# Ignore generated files
+*.zip
+*.csv
+*.data
+
+# Ignore all dat files except the initial one
+*.dat
+!initial_control_points.dat
 
 # venv / secrets
 .env
