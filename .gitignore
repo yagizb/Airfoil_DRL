@@ -29,3 +29,9 @@ results/
 
 # OS
 .DS_Store
+# Airfoil history (generated data)
+airfoil_history_*
+
+# Also good to ignore logs
+cl_cd_history_*
+runs/
