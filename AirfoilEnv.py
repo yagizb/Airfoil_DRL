@@ -111,14 +111,14 @@ class AirfoilEnv(gym.Env):
     def eval_reward_01(self, CL, CD):
         # Missing or non-finite → failure
         if (CL is None) or (CD is None) or (not np.isfinite(CL)) or (not np.isfinite(CD)):
-            penalty = -1.0 if self.objective == "cl" else -10.0
+            penalty = -1.0 if self.objective == "cl" else -100.0
             return penalty, penalty, None, None
 
         # Physical / numerical invalid
         LD = CL / max(CD, self.eps)
         invalid = (CD <= 0.0) or (CL >= 3.0) or (LD >= 200.0)
         if invalid:
-            penalty = -1.0 if self.objective == "cl" else -10.0
+            penalty = -1.0 if self.objective == "cl" else -100.0
             return penalty, penalty, None, None
 
         obj_val = float(CL) if (self.objective == "cl") else float(LD)

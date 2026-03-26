@@ -1,0 +1,12 @@
+unload EB/apps (PATH)
+unload bsc/1.0 (PATH, MANPATH)
+unload UCX/1.15.0 (PATH, LD_LIBRARY_PATH, LIBRARY_PATH, C_INCLUDE_PATH,
+CPLUS_INCLUDE_PATH) 
+remove mkl/2023.2.0 (LD_LIBRARY_PATH)
+remove impi/2021.10.0 (PATH, MANPATH, LD_LIBRARY_PATH)
+Set INTEL compilers as MPI wrappers backend
+load impi/2021.11 (PATH, MANPATH, LD_LIBRARY_PATH)
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+srun: error: gs03r2b02: tasks 0,2-3: Killed
+srun: Terminating StepId=38232896.0
+srun: error: gs03r2b02: task 1: Exited with exit code 1

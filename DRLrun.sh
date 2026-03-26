@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=SAC_MaxCL_Re3_AoA00
+#SBATCH --job-name=SAC_MaxCL_Re3_AoA10ß
 #SBATCH --chdir=.
 
 ### Output and error files directory

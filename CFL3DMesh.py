@@ -2,88 +2,111 @@ import numpy as np
 import subprocess
 from pathlib import Path
 
+import time
 
-def construct2d(airfoil_file, Re_number, work_dir):
+def construct2d(airfoil_file, Re_number, work_dir, max_tries=33, sleep_sec=1.0):
     """
-    Run Construct2D inside work_dir, using airfoil_file.dat located there.
+    Run Construct2D inside work_dir with retry logic.
 
     Parameters
     ----------
     airfoil_file : str or Path
-        Base name of airfoil file (without .dat) OR full path; the .dat
-        is expected to be in work_dir.
     Re_number : float
-        Chord Reynolds number.
     work_dir : str or Path
-        Directory where Construct2D will run and write its output (.p3d).
+    max_tries : int
+        Number of attempts (default: 11)
+    sleep_sec : float
+        Delay between retries (important for HPC FS)
     """
-
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
 
     construct2d_path = "/gpfs/projects/bsc21/bsc545758/Construct2D_2.1.4/construct2d"
 
     airfoil_file = Path(airfoil_file)
-    airfoil_basename = airfoil_file.stem  # strip .dat if present
+    airfoil_basename = airfoil_file.stem
 
-    # Construct2D expects a file in the current working directory,
-    # so we pass only the name and assume "<name>.dat" is in work_dir.
     airfoil_dat_name = f"{airfoil_basename}.dat"
     airfoil_dat_path = work_dir / airfoil_dat_name
 
     if not airfoil_dat_path.exists():
-        raise FileNotFoundError(f"Airfoil file not found in {work_dir}: {airfoil_dat_name}")
+        raise FileNotFoundError(f"{airfoil_dat_name} not found in {work_dir}")
 
-    # Simulated interactive inputs to Construct2D
+    expected_file = work_dir / f"{airfoil_basename}.p3d"
+
     input_lines = [
-        airfoil_dat_name,                # airfoil geometry file
+        airfoil_dat_name,
         "SOPT",
-        "LESP",                          # Leading edge point spacing:
+        "LESP",
         "0.001",
-        "RADI",                          # Farfield radius:
+        "RADI",
         "20",
         "QUIT",
         "VOPT",
-        "JMAX",                          # Number of points in normal direction:
+        "JMAX",
         "101",
-        "TOPO",                          # Grid topology (O-GRID or C-GRID)
-        "0GRD",
-        "RECD",                          # Chord Reynolds number for y-plus:
+        "TOPO",
+        "OGRD",
+        "RECD",
         f"{Re_number}",
         "QUIT",
         "OOPT",
-        "GDIM",                          # Output grid dimension:
+        "GDIM",
         "2",
-        "NPLN",                          # Number of planes for 3D output grid:
+        "NPLN",
         "2",
-        "DPLN",                          # Plane spacing for 3D output grid:
+        "DPLN",
         "1.0",
         "QUIT",
         "GRID",
         "SMTH",
         "QUIT",
     ]
+
     input_str = "\n".join(input_lines) + "\n"
 
-    # Run Construct2D in work_dir
-    result = subprocess.run(
-        [construct2d_path],
-        input=input_str.encode("utf-8"),
-        cwd=work_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True,
+    # Retry loop
+    for attempt in range(1, max_tries + 1):
+        print(f"[Construct2D] Attempt {attempt}/{max_tries} in {work_dir}")
+
+        # Clean previous outputs
+        if expected_file.exists():
+            expected_file.unlink()
+
+        for f in work_dir.glob("*.p3d"):
+            f.unlink()
+
+        result = subprocess.run(
+            [construct2d_path],
+            input=input_str,
+            text=True,
+            cwd=work_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        # Small delay for filesystem sync (GPFS)
+        time.sleep(sleep_sec)
+
+        # Check expected file
+        if expected_file.exists():
+            print(f"SUCCESS: {expected_file.name}")
+            return expected_file
+
+        print(" No .p3d file, retrying...")
+
+        # Print debug only on last attempt
+        if attempt == max_tries:
+            print("=== STDOUT ===")
+            print(result.stdout)
+            print("=== STDERR ===")
+            print(result.stderr)
+
+    # Final failure
+    raise RuntimeError(
+        f"Construct2D failed after {max_tries} attempts in {work_dir}"
     )
-
-    print("=== Construct2D STDOUT ===")
-    print(result.stdout.decode())
-
-    print("=== Construct2D STDERR ===")
-    print(result.stderr.decode())
-
-    # Construct2D will write something like "<airfoil_basename>.p3d" in work_dir
-    return work_dir / f"{airfoil_basename}.p3d"
-
 
 def read_plot3d_2d(filename):
     filename = Path(filename)

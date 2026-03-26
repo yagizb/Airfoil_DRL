@@ -37,11 +37,11 @@ def create_env(env_id: int):
     return _init
 
 if __name__ == "__main__":
-    mp.set_start_method("spawn", force=True)
+    mp.set_start_method("spawn", force=True) ## is a Python multiprocessing setting that controls how new processes are created.
     
     trial_number = 110 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
     SEED = int(config.SEED) + trial_number
-    config.set_global_seeds(SEED)
+    config.set_global_seeds(config.SEED)
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
 
     MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
@@ -72,10 +72,10 @@ if __name__ == "__main__":
 
     cb = TensorboardAeroCallback(log_every=100)
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="XFOIL001_SACtr0110_R010")
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="RANS001_SACtr0110_R100_mesh")
     print("Learned")
 
-    ms = MODEL_BASENAME + "_XFOIL001_SACtr0110_R010"
+    ms = MODEL_BASENAME + "_RANS001_SACtr0110_R100_mesh"
         
     model.save(ms)
     train_env.save(ms + ".pkl")
