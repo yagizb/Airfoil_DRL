@@ -9,8 +9,11 @@ from AirfoilEnv import AirfoilEnv
 from AirfoilCallBacks import TensorboardAeroCallback
 from Reset import reset_history
 
+# --- GLOBAL SEED SETUP ---
+trial_number = 101
+SEED = int(config.SEED) + trial_number
 
-def create_env(env_id: int):
+def create_env(env_id: int, seed : int=0):
     def _init():
         # directory where the Python script lives
         SCRIPT_DIR = Path(__file__).resolve().parent
@@ -33,21 +36,21 @@ def create_env(env_id: int):
             max_no_improvement_episodes=config.MAX_NO_IMPROV,
             objective=config.OBJECTIVE,
         )
+        # --- CRITICAL: per-env seeding ---
+        env.reset(seed=seed + env_id)
+        
         return env
     return _init
 
 if __name__ == "__main__":
-    mp.set_start_method("spawn", force=True)
+    mp.set_start_method("spawn", force=True) ## is a Python multiprocessing setting that controls how new processes are created.
     
-    trial_number = 101 #### optimum hyperparameters found at trial ?????, see Optuna_Results_Summary.txt
-    SEED = int(config.SEED) + trial_number
-    config.set_global_seeds(SEED)
     reset_history(config.AIRFOIL_HISTORY_DIR, config.CL_CD_HISTORY_DIR)
 
     MODEL_BASENAME = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
     
     train_env = SubprocVecEnv(
-        [create_env(i) for i in range(config.NUM_ENVS)],
+        [create_env(i, seed=SEED) for i in range(config.NUM_ENVS)],
         start_method="spawn",
     )
     train_env = VecMonitor(train_env)
@@ -76,10 +79,10 @@ if __name__ == "__main__":
 
     cb = TensorboardAeroCallback(log_every=100)
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="test00")
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="XFOIL001_PPOtr0101_MaxCL")
     print("Learned")
 
-    ms = MODEL_BASENAME + "_test00"
+    ms = MODEL_BASENAME + "_XFOIL001_PPOtr0101_MaxCL"
         
     model.save(ms)
     train_env.save(ms + ".pkl")
