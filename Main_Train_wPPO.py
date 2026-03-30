@@ -10,7 +10,7 @@ from AirfoilCallBacks import TensorboardAeroCallback
 from Reset import reset_history
 
 # --- GLOBAL SEED SETUP ---
-trial_number = 101
+trial_number = 33
 SEED = int(config.SEED) + trial_number
 
 def create_env(env_id: int, seed : int=0):
@@ -79,10 +79,10 @@ if __name__ == "__main__":
 
     cb = TensorboardAeroCallback(log_every=100)
 
-    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name="XFOIL001_PPOtr0101_MaxCL")
+    model.learn(total_timesteps=config.TOTAL_TIMESTEPS,callback=cb, tb_log_name=f"XFOIL001_PPOtr{trial_number}_MaxCL")
     print("Learned")
 
-    ms = MODEL_BASENAME + "_XFOIL001_PPOtr0101_MaxCL"
+    ms = MODEL_BASENAME + f"_XFOIL001_PPOtr{trial_number}_MaxCL"
         
     model.save(ms)
     train_env.save(ms + ".pkl")
