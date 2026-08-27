@@ -33,6 +33,7 @@ MAX_NO_IMPROV   = 20000
 
 WORK_ROOT = "runs"
 CFL3D_SCRIPT = "Main_airfoil_cfl3d.sh"
+SOD2D_SCRIPT = "Main_airfoil_sod2d.sh"
 BASENAME = (f"Re{int(RE/1.e06)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}")
 AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
 CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
