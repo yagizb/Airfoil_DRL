@@ -3,10 +3,6 @@ from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, VecMon
 from pathlib import Path
 import multiprocessing as mp
 
-import numpy as np
-import torch
-import random
-
 import DRL_config
 from AirfoilEnv import AirfoilEnv
 from AirfoilCallBacks import TensorboardAeroCallback

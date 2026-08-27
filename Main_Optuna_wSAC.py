@@ -11,7 +11,7 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv, VecNormalize, VecMonitor
 from stable_baselines3.common.evaluation import evaluate_policy
 
-import config
+import DRL_config
 from AirfoilEnv import AirfoilEnv
 
 
@@ -25,18 +25,18 @@ def make_env(env_id: int, run_root: Path, hist_root: Path, seed: int):
 
         env = AirfoilEnv(
             env_id=env_id,
-            n_envs=config.NUM_ENVS,
+            n_envs=DRL_config.NUM_ENVS,
             work_dir=str(work_dir),
             save_data=True,                 # OK because history dirs are trial-local
-            fidelity=config.FIDELITY,
+            fidelity=DRL_config.FIDELITY,
             batch_id=0,
-            angle_of_attack=config.AOA,
-            Re_number=config.RE,
-            scaling_factor=config.ACTION_SCALE,
-            airfoil_file=config.AIRFOIL_FILE,
-            max_steps=config.MAX_STEPS,      # if MAX_STEPS=1, each episode=1 step (fine)
-            max_no_improvement_episodes=config.MAX_NO_IMPROV,
-            objective=config.OBJECTIVE,
+            angle_of_attack=DRL_config.AOA,
+            Re_number=DRL_config.RE,
+            scaling_factor=DRL_config.ACTION_SCALE,
+            airfoil_file=DRL_config.AIRFOIL_FILE,
+            max_steps=DRL_config.MAX_STEPS,      # if MAX_STEPS=1, each episode=1 step (fine)
+            max_no_improvement_episodes=DRL_config.MAX_NO_IMPROV,
+            objective=DRL_config.OBJECTIVE,
             # trial-local history folders
             airfoil_history_dir=str(hist_root / "airfoils"),
             cl_cd_history_dir=str(hist_root / "clcd"),
@@ -106,8 +106,8 @@ def suggest_params(trial: optuna.Trial) -> Dict[str, Any]:
 def objective(trial: optuna.Trial) -> float:
     SCRIPT_DIR = Path(__file__).resolve().parent 
     base_root = SCRIPT_DIR / "runs"
-    #base_root = Path(getattr(config, "WORK_ROOT", "runs")).resolve()
-    model_basename = f"airfoil_Re{int(config.RE/1e6)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}"
+    #base_root = Path(getattr(DRL_config, "WORK_ROOT", "runs")).resolve()
+    model_basename = f"airfoil_Re{int(DRL_config.RE/1e6)}M_AoA{int(DRL_config.AOA):02d}_{DRL_config.OBJECTIVE.upper()}"
 
     trial_root = base_root / "optuna" / model_basename / f"trial_{trial.number:04d}"
     run_root = trial_root / "work"
@@ -118,10 +118,10 @@ def objective(trial: optuna.Trial) -> float:
     run_root.mkdir(parents=True, exist_ok=True)
     hist_root.mkdir(parents=True, exist_ok=True)
 
-    seed = int(config.SEED) + trial.number
+    seed = int(DRL_config.SEED) + trial.number
 
     train_env = build_vec_env(
-        n_envs=config.NUM_ENVS,
+        n_envs=DRL_config.NUM_ENVS,
         run_root=run_root,
         hist_root=hist_root,
         seed=seed,
@@ -146,11 +146,11 @@ def objective(trial: optuna.Trial) -> float:
         seed=seed,
         verbose=0,
         tensorboard_log=str(trial_root / "tb"),
-        learning_starts=getattr(config, "LEARNING_STARTS", 100),
+        learning_starts=getattr(DRL_config, "LEARNING_STARTS", 100),
         **params,
     )
 
-    train_steps = int(getattr(config, "OPTUNA_TRAIN_STEPS", 2048)) ## CFD calls total per 1 trial, done in parallel batches of n_envs.
+    train_steps = int(getattr(DRL_config, "OPTUNA_TRAIN_STEPS", 2048)) ## CFD calls total per 1 trial, done in parallel batches of n_envs.
     model.learn(total_timesteps=train_steps, tb_log_name=f"trial_{trial.number:04d}")
 
     # Sync normalization statistics
@@ -158,7 +158,7 @@ def objective(trial: optuna.Trial) -> float:
     eval_env.obs_rms = train_env.obs_rms        ## obs_rms: running mean & variance of observations
     eval_env.ret_rms = train_env.ret_rms        ## ret_rms: running mean & variance of returns (rewards)
 
-    n_eval_eps = int(getattr(config, "OPTUNA_EVAL_EPISODES", 21))
+    n_eval_eps = int(getattr(DRL_config, "OPTUNA_EVAL_EPISODES", 21))
     mean_reward, _ = evaluate_policy(
         model,
         eval_env,
@@ -188,7 +188,7 @@ def objective(trial: optuna.Trial) -> float:
 # -----------------------------
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    config.set_global_seeds(config.SEED)
+    DRL_config.set_global_seeds(DRL_config.SEED)
 
     storage = f"sqlite:///{Path(__file__).resolve().parent / 'optuna_airfoil.db'}"
     study = optuna.create_study(
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         direction="maximize",
         storage=storage,
         load_if_exists=True,
-        sampler=optuna.samplers.TPESampler(multivariate=True, seed=config.SEED),
+        sampler=optuna.samplers.TPESampler(multivariate=True, seed=DRL_config.SEED),
         pruner=optuna.pruners.MedianPruner(n_startup_trials=8),
     )
     ## Optuna will run the objective() function n_trials times.
