@@ -1,13 +1,8 @@
 import time
-from CAL_CLCD import calclcd  
-from CFL3DSubJob import kill_job
 from typing import Tuple, Optional
 from pathlib import Path
 
-from pathlib import Path
-from typing import Tuple
-
-def count_ready_failed(shared_root: Path, n_envs: int) -> Tuple[int, int]:
+def count_cfl3d_ready_failed(shared_root: Path, n_envs: int) -> Tuple[int, int]:
     """
     Count how many env_i have:
       - cfl3d_ready.flag
@@ -47,7 +42,7 @@ def wait_ready_stable(shared_root: Path, n_envs: int, stable_s: float = 5.0,
     t0 = time.time()
 
     while True:
-        cur = count_ready_failed(shared_root, n_envs)
+        cur = count_cfl3d_ready_failed(shared_root, n_envs)
         if cur == last:
             stable += poll_s
         else:
@@ -65,46 +60,6 @@ def wait_ready_stable(shared_root: Path, n_envs: int, stable_s: float = 5.0,
 
         time.sleep(poll_s)
 
-def checkconv(env_id, output_geo, angle_of_attack):
-    """
-    Monitors the convergence of the Cl (Lift Coefficient) for a given environment.
-    
-    Args:
-        env_id (int): Environment ID.
-        output_geo (str): Path or reference to geometry output.
-        angle_of_attack (float): Angle of attack in degrees.
-
-    Returns:
-        dict: Contains the final Cl, Cd, and convergence status.
-    """
-    # Initial computation of Cl and Cd
-    time.sleep(60)
-    Cl, Cd = calclcd(output_geo, angle_of_attack)
-    print(f"Env_ID: {env_id}, Initial Cl={Cl:.6f}, Initial Cd={Cd:.6f}")
-
-    # Variables for convergence tracking
-    Cl_old = Cl
-    convergence_threshold = 0.01  # 1% threshold for convergence
-    converged = False
-
-    while not converged:
-        time.sleep(60)  # Wait for 60 seconds before checking again
-        
-        # Recalculate Cl and Cd
-        Cl, Cd = calclcd(output_geo, angle_of_attack)
-        print(f"Env_ID: {env_id}, Updated Cl={Cl:.6f}, Updated Cd={Cd:.6f}")
-
-        # Calculate relative change in Cl
-        relative_change = abs((Cl - Cl_old) / Cl_old)
-        print(f"Relative Change in Cl: {relative_change:.4%}")
-
-        if relative_change < convergence_threshold:
-            converged = True
-            print(f"Run has converged for Env_ID: {env_id}")
-        else:
-            Cl_old = Cl  # Update for next iteration
-
-    return Cl,Cd
 
 BEGIN_INIT = "***** BEGINNING INITIALIZATION *****"
 END_INIT   = "***** ENDING INITIALIZATION *****"
@@ -183,67 +138,140 @@ def check_cfl3d_error(work_dir: Path) -> Tuple[bool, Optional[int]]:
         # File exists but unreadable → treat as failure (safe side)
         return False, None
         
+
+def plot3d_files_ready(work_dir):
+    work_dir = Path(work_dir)
+
+    plot3dg = work_dir / "plot3dg.bin"
+    plot3dq = work_dir / "plot3dq.bin"
+
+    return (
+        plot3dg.exists()
+        and plot3dq.exists()
+        and plot3dg.stat().st_size > 0
+        and plot3dq.stat().st_size > 0
+    )
+
+
 def follow_cfl3d_output(
     file_path,
     sleep_time,
     threshold,
     max_iter,
+    fidelity,
     conv_flag_path=None,
 ):
     """
-    Monitor a CFL3D output file until convergence / failure.
+    Monitor a CFL3D output file.
 
-    - Writes a small flag file if conv_flag_path is given:
-        'CONVERGED', 'MAX_ITER', or 'INVALID_MESH'.
+    FIDELITY = 1:
+        Check residual convergence.
+
+    FIDELITY = 2:
+        Ignore residual convergence.
+        Wait until max_iter is reached and plot3dg.bin / plot3dq.bin exist.
+
+    Flag values:
+        CONVERGED
+        RANS_INIT_DONE
+        MAX_ITER
+        INVALID_MESH
     """
-    print(f"Monitoring '{file_path}' every {sleep_time}s for convergence...\n")
+
+    file_path = Path(file_path)
+    work_dir = file_path.parent
+
+    print(f"Monitoring '{file_path}' every {sleep_time}s...\n")
 
     while True:
         try:
             with open(file_path, "r") as f:
                 lines = f.readlines()
 
-            # Find the last data line (must start with digit)
             for line in reversed(lines):
                 tokens = line.strip().split()
+
                 if len(tokens) >= 8 and tokens[0].replace(".", "", 1).isdigit():
                     iteration = int(tokens[2])
                     total_res = float(tokens[4].replace("E", "e"))
                     lift = float(tokens[5].replace("E", "e"))
                     drag = float(tokens[6].replace("E", "e"))
 
-
                     print(
                         f"[Iter {iteration}] Total Res = {total_res:.2e}, "
                         f"Lift = {lift:.5f}, Drag = {drag:.5f}"
                     )
 
-                    # --- convergence ---
-                    if total_res < threshold:
-                        print("Convergence achieved!")
-                        if conv_flag_path is not None:
-                            Path(conv_flag_path).write_text("CONVERGED\n")
-                        return lift, drag
+                    # -------------------------
+                    # Invalid mesh sentinel
+                    # -------------------------
+                    if total_res == 1.00e0 and lift == 1.0:
+                        print(f"Mesh is invalid, Res={total_res}, Lift={lift}")
 
-                    # --- max iteration ---
-                    if iteration > max_iter:
-                        print(f" Max iteration limit ({max_iter}) exceeded.")
                         if conv_flag_path is not None:
-                            Path(conv_flag_path).write_text("MAX_ITER\n")
-                        return lift, drag       ##???????????
+                            Path(conv_flag_path).write_text("INVALID_MESH\n")
 
-                    # --- mesh invalid sentinel ---
+                        return 0.0, 1.0e-8
+
+                    # -------------------------
+                    # FIDELITY = 1
+                    # Normal RANS convergence
+                    # -------------------------
+                    if fidelity == 1:
+                        if total_res < threshold:
+                            print("CFL3D convergence achieved!")
+
+                            if conv_flag_path is not None:
+                                Path(conv_flag_path).write_text("CONVERGED\n")
+
+                            return lift, drag
+
+                        if iteration >= max_iter:
+                            print(f"Max iteration limit ({max_iter}) reached.")
+
+                            if conv_flag_path is not None:
+                                Path(conv_flag_path).write_text("MAX_ITER\n")
+
+                            return lift, drag
+
+                        # --- mesh invalid sentinel ---
                     if total_res == 1.00e0 and lift == 1.0:
                         print(f"Mesh is invalid, Res: {total_res}, Lift: {lift}")
                         if conv_flag_path is not None:
                             Path(conv_flag_path).write_text("INVALID_MESH\n")
                         return 0.0, 1.0e-8  # fallback values
+                    # -------------------------
+                    # FIDELITY = 2
+                    # RANS only for LES initialization
+                    # -------------------------
+                    elif fidelity == 2:
+                        if iteration >= max_iter:
+                            if plot3d_files_ready(work_dir):
+                                print(
+                                    "RANS initialization finished. "
+                                    "plot3dg.bin and plot3dq.bin are ready."
+                                )
 
-                    break  # only need the latest valid line
+                                if conv_flag_path is not None:
+                                    Path(conv_flag_path).write_text("RANS_INIT_DONE\n")
+
+                                return lift, drag
+
+                            else:
+                                print(
+                                    f"Reached iteration {iteration}, "
+                                    "waiting for plot3dg.bin / plot3dq.bin..."
+                                )
+
+                    else:
+                        raise ValueError(f"Unsupported fidelity value: {fidelity}")
+
+                    break
 
         except FileNotFoundError:
-            print(" Waiting for cfl3d.out to be created...")
+            print("Waiting for cfl3d.out to be created...")
+
         except Exception as e:
-            print(f" Error reading output: {e}")
+            print(f"Error reading output: {e}")
 
         time.sleep(sleep_time)

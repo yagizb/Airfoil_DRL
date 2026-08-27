@@ -4,7 +4,7 @@ from pathlib import Path
 
 import time
 
-def construct2d(airfoil_file, Re_number, work_dir, max_tries=33, sleep_sec=1.0):
+def construct2d(airfoil_file, Re_number, JMAX, RADI,MESH_TYPE,RANS_YPLS, work_dir, max_tries=33, sleep_sec=1.0):
     """
     Run Construct2D inside work_dir with retry logic.
 
@@ -12,6 +12,10 @@ def construct2d(airfoil_file, Re_number, work_dir, max_tries=33, sleep_sec=1.0):
     ----------
     airfoil_file : str or Path
     Re_number : float
+    JMAX : int
+    RADI : int
+    MESH_TYPE : str
+    RANS_YPLS : int
     work_dir : str or Path
     max_tries : int
         Number of attempts (default: 11)
@@ -40,15 +44,15 @@ def construct2d(airfoil_file, Re_number, work_dir, max_tries=33, sleep_sec=1.0):
         "LESP",
         "0.001",
         "RADI",
-        "20",
+        f"{RADI}",
         "QUIT",
         "VOPT",
         "JMAX",
-        "101",
+        f"{JMAX}",
         "TOPO",
-        "OGRD",
-        "RECD",
-        f"{Re_number}",
+        f"{MESH_TYPE}",
+        "YPLS",
+        f"{RANS_YPLS}",
         "QUIT",
         "OOPT",
         "GDIM",
@@ -163,7 +167,7 @@ def write_plot3d_ascii(filename, x, y, z):
         write_array(z)
 
 
-def cfl3d_mesh(filename, Re_number, work_dir):
+def cfl3d_mesh(filename, Re_number, JMAX, RADI, MESH_TYPE, RANS_YPLS, work_dir):
     """
     Full mesh pipeline for a given airfoil, inside runs/env{i}.
 
@@ -182,7 +186,7 @@ def cfl3d_mesh(filename, Re_number, work_dir):
     work_dir.mkdir(parents=True, exist_ok=True)
 
     # 1) Run Construct2D to generate 2D Plot3D in work_dir
-    output_file = construct2d(filename, Re_number, work_dir)
+    output_file = construct2d(filename, Re_number, JMAX, RADI, MESH_TYPE, RANS_YPLS, work_dir)
 
     # 2) Read 2D grid
     x2d, y2d = read_plot3d_2d(output_file)

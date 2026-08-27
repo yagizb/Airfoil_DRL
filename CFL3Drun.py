@@ -1,4 +1,4 @@
-from networkx import config
+import json
 
 from CFL3DMesh import cfl3d_mesh
 from CFL3DSubJob import main_cfl3d, kill_job
@@ -6,7 +6,7 @@ from CFL3DConver import (
     follow_cfl3d_output,
     check_cfl3d_error,
     cfl3d_out_init_crashed,
-    count_ready_failed,
+    count_cfl3d_ready_failed,
 )
 from CFL3DHelper import (
     _safe_unlink,
@@ -26,7 +26,15 @@ import os
 import subprocess
 from pathlib import Path
 import DRL_config
-from typing import Optional
+
+def read_flow_config(config_file="flow_config.json"):
+    script_dir = Path(__file__).resolve().parent
+    config_path = script_dir / config_file
+
+    with open(config_path, "r") as f:
+        cfl3d_config = json.load(f)
+
+    return cfl3d_config
 
 def cfl3d_airfoil(
     env_id,
@@ -34,6 +42,7 @@ def cfl3d_airfoil(
     airfoil_file,
     angle_of_attack,
     Re_number,
+    fidelity,
     work_dir,
     startup_wait: float = 10.0,
     eps: float = 1e-8,
@@ -61,6 +70,13 @@ def cfl3d_airfoil(
     job_id = None
     is_leader = False
     cwd = Path.cwd()
+    
+    cfl3d_config = read_flow_config()
+    IMAX=cfl3d_config["idim"]
+    JMAX=cfl3d_config["jmax"]
+    RADI=cfl3d_config["radi"]
+    MESH_TYPE=cfl3d_config["mesh_type"]
+    YPLS=cfl3d_config["RANS_ypls"]
 
     for flag in (status_flag, failed_flag, conv_flag, ready_flag, cfl3d_error):
         if flag.exists():
@@ -86,10 +102,11 @@ def cfl3d_airfoil(
             file_name="cfl3d.inp_1",
             new_alpha=angle_of_attack,
             new_reynolds=Re_number,
+            new_ncyc=100000 if DRL_config.FIDELITY == 1 else 20000
         )
 
-        try:
-            cfl3d_mesh(airfoil_file, Re_number, work_dir)
+        try:            
+            cfl3d_mesh(airfoil_file, Re_number,JMAX, RADI, MESH_TYPE, YPLS, work_dir)
         except Exception as e:
             vprint(f"[Env {env_id}] Mesh FAILED: {e}")
             return _fail_and_return(
@@ -167,7 +184,7 @@ def cfl3d_airfoil(
             last_change = time.time()
 
             while True:
-                n_ready, n_failed = count_ready_failed(shared_root, n_envs)
+                n_ready, n_failed = count_cfl3d_ready_failed( shared_root=shared_root, n_envs=n_envs)
 
                 if n_ready != last_ready:
                     last_ready = n_ready
@@ -203,7 +220,7 @@ def cfl3d_airfoil(
             ntasks = 4 * n_ready
             vprint(f"[Leader {env_id}] Submitting batch for n_ready={n_ready} -> ntasks={ntasks}")
 
-            job_id, job_state = main_cfl3d(script_name=config.CFL3D_SCRIPT, ntasks=ntasks)
+            job_id, job_state = main_cfl3d(script_name=DRL_config.CFL3D_SCRIPT, ntasks=ntasks)
 
             if not job_id or job_state != "R":
                 vprint(f"[Env {env_id}] Submit FAILED (job_id={job_id}, state={job_state})")
@@ -330,8 +347,9 @@ def cfl3d_airfoil(
         Cl_new, Cd_new = follow_cfl3d_output(
             "cfl3d.out",
             sleep_time=5,
-            threshold=0.5e-9,
-            max_iter=90000,
+            threshold = 0.5e-10 if DRL_config.FIDELITY == 1 else 0.5e-15,
+            max_iter=100000 if DRL_config.FIDELITY == 1 else 20000,
+            fidelity=DRL_config.FIDELITY,
             conv_flag_path=conv_flag,
         )
         if Cl_new is None or Cd_new is None:
@@ -427,7 +445,9 @@ def cfl3d_airfoil(
         else:
             _wait_done_flag(done_flag, timeout=done_wait_timeout, poll=2.0, vprint=vprint)
 
-        clean_env(work_dir)
+        # if fidelity == 1 :
+        #     clean_env(work_dir)
+        
         return Cl, Cd
 
     finally:

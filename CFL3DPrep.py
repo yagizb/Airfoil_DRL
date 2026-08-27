@@ -53,7 +53,7 @@ def copy_main_inputs(shared_root, dst_dir):
     into runs/env_{env_id}/
     """
     main_root = shared_root.parent
-    src_dir = main_root / "main"
+    src_dir = main_root / "main_cfl3d"
 
     # Make sure destination exists
     dst_dir.mkdir(parents=True, exist_ok=True)
@@ -74,7 +74,8 @@ def update_cfl3d_inp(
     folder,
     file_name,
     new_alpha=None,
-    new_reynolds=None
+    new_reynolds=None,
+    new_ncyc=None
 ):
     """
     Update ALPHA and REUE,MIL inside runs/env{i}/cfl3d.inp safely.
@@ -119,16 +120,41 @@ def update_cfl3d_inp(
 
     if not updated:
         raise RuntimeError("Could not find XMACH / REUE,MIL block in file.")
+    
+    # ---------- Update NCYC ----------
+    if new_ncyc is not None:
+        updated_ncyc = False
 
-    # Write back
-    with open(file_path, "w") as f:
-        f.writelines(lines)
+        for i, line in enumerate(lines):
+            if "NCYC" in line:
+                target = i + 1
+                values = lines[target].split()
 
-    # Print confirmation
-    msg = []
-    if new_alpha is not None:
-        msg.append(f"ALPHA={new_alpha}")
-    if new_reynolds is not None:
-        msg.append(f"RE={new_reynolds:.3e}")
+                if len(values) < 1:
+                    raise ValueError("Unexpected format in NCYC line.")
 
-    print(f"Updated {' & '.join(msg)} in {file_path}")
+                # Modify NCYC
+                if new_ncyc is not None:
+                    values[0] = str(int(new_ncyc))
+
+                lines[target] = "   " + "    ".join(values) + "\n"
+
+                updated_ncyc = True
+                break
+
+        if not updated_ncyc:
+            raise ValueError("Could not find NCYC section.")
+        # Write back
+        with open(file_path, "w") as f:
+            f.writelines(lines)
+
+        # Print confirmation
+        msg = []
+        if new_alpha is not None:
+            msg.append(f"ALPHA={new_alpha}")
+        if new_reynolds is not None:
+            msg.append(f"RE={new_reynolds:.3e}")
+        if new_ncyc is not None:
+            msg.append(f"NCYC={new_ncyc}")
+
+        print(f"Updated {' & '.join(msg)} in {file_path}")

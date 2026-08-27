@@ -31,9 +31,6 @@ def bezier_curve(control_points: np.ndarray, n_points: int = 96) -> np.ndarray:
     curve = B @ cps                              # (n_points, 2)
     return curve.astype(np.float32)
 
-import numpy as np
-from typing import Tuple
-
 def non_overlap_ok(
     upper_curve: np.ndarray,
     lower_curve: np.ndarray,
