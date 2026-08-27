@@ -1,3 +1,5 @@
+from networkx import config
+
 from CFL3DMesh import cfl3d_mesh
 from CFL3DSubJob import main_cfl3d, kill_job
 from CFL3DConver import (
@@ -23,7 +25,7 @@ import time
 import os
 import subprocess
 from pathlib import Path
-import config
+import DRL_config
 from typing import Optional
 
 def cfl3d_airfoil(

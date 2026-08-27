@@ -14,11 +14,12 @@ def read_flow_config(config_file="flow_config.json"):
     return flow_config
 
 flow_config = read_flow_config()
+
 # ---------- General ----------
 SEED            = 42
 # ---------- Environment ----------
 NUM_ENVS        = 32
-OBJECTIVE       = "cl_cd"      # "cl" or "cl_cd" 
+OBJECTIVE       = "cl"      # "cl" or "cl_cd" 
 FIDELITY        = 0         # 0=Xfoil, 1=RANS, 2=LES
 TRAIN           = "000"      ## 0=Xfoil, 1=RANS, 2=LES 
 AOA             = 10       # Angle of attack (degrees)
@@ -31,20 +32,19 @@ MAX_STEPS       = 1         # ??????? Episode always truncated at step 1: max_st
 MAX_NO_IMPROV   = 20000
 
 WORK_ROOT = "runs"
-CFL3D_SCRIPT = "Main_airfoil_cfl3d.sh"
 BASENAME = (f"Re{int(RE/1.e06)}M_AoA{int(AOA):02d}_{OBJECTIVE.upper()}")
 AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
 CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
 NUM_CONTROL_POINTS  = 18    # Bezier Curves, control points
 
 # ---------- SAC Training ---------
-BATCH_SIZE      = 512                         # Sub-chunks of rollout used during network training
-BUFFER_SIZE     = 61536
-ENT_COEF        = 0.007388155001476719     # 0.02 - 0.05 - 0.1 # encourage exploration --- 0.025 ent_coef=0.0,   # ← default
-GAMMA           = 0.9737493343361018 #0.9581661681401709           # Discount factor
-GRADIENT_STEPS  = 4
-LEARNING_RATE   = 0.00005721210778400007
-TAU             = 0.003985370978863392
+BATCH_SIZE      = 256                         # Sub-chunks of rollout used during network training
+BUFFER_SIZE     = 27732
+ENT_COEF        = 0.0014315369652839504      # 0.02 - 0.05 - 0.1 # encourage exploration --- 0.025 ent_coef=0.0,   # ← default
+GAMMA           = 0.9685823555472262 #0.9581661681401709           # Discount factor
+GRADIENT_STEPS  = 2
+LEARNING_RATE   = 0.000057168096738063156
+TAU             = 0.003072179965794194
 TRAIN_FREQ      = 2 
 LEARNING_STARTS = 100   
 

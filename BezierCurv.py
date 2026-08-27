@@ -181,13 +181,21 @@ def generate_airfoil(
 
     out_path = out_dir / f"{airfoil_file}.dat"
 
-    # Save coordinates
-    np.savetxt(out_path, airfoil, fmt="%.6f")
+    # Save coordinates with "airfoil" as the first line
+    np.savetxt(
+        out_path,
+        airfoil,
+        fmt="%.6f",
+        header="airfoil",
+        comments="",
+    )
 
     # Build string for env logging
-    airfoil_data_str = warning_line + "\n".join(
-        " ".join(f"{x:.6f}" for x in row) for row in airfoil
+    coordinate_lines = "\n".join(
+        " ".join(f"{x:.6f}" for x in row)
+        for row in airfoil
     )
+    airfoil_data_str = warning_line + "airfoil\n" + coordinate_lines
 
     if return_array:
         return airfoil_data_str, airfoil

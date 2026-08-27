@@ -7,7 +7,7 @@ from gymnasium.spaces import Box
 from BezierCurv import generate_airfoil
 from Xfoil import analyze_airfoil
 from CFL3Drun import cfl3d_airfoil
-import config
+import DRL_config
 from typing import Optional
 from typing import cast
 
@@ -28,7 +28,7 @@ class AirfoilEnv(gym.Env):
         airfoil_file: str,
         max_steps: int = 1,
         eps: float = 1e-8,
-        max_no_improvement_episodes: int = config.MAX_NO_IMPROV,
+        max_no_improvement_episodes: int = DRL_config.MAX_NO_IMPROV,
         objective: str = "cl_cd",
         # >>> NEW (trial-local history dirs
         airfoil_history_dir: Optional[str] = None,
@@ -58,8 +58,8 @@ class AirfoilEnv(gym.Env):
         assert self.objective in ("cl", "cl_cd")
 
         # >>> USE trial-local dirs if provided, else fallback to config
-        air_hist_root = airfoil_history_dir or config.AIRFOIL_HISTORY_DIR
-        clcd_root     = cl_cd_history_dir or config.CL_CD_HISTORY_DIR
+        air_hist_root = airfoil_history_dir or DRL_config.AIRFOIL_HISTORY_DIR
+        clcd_root     = cl_cd_history_dir or DRL_config.CL_CD_HISTORY_DIR
 
         os.makedirs(air_hist_root, exist_ok=True)
         os.makedirs(clcd_root, exist_ok=True)
@@ -73,7 +73,7 @@ class AirfoilEnv(gym.Env):
                 f.write("Episode, CL, CD, cl_cd, Objective, Objective_Value, Reward, Invalid_code, Failed \n")
 
         # --- spaces ---
-        self.num_control_points = config.NUM_CONTROL_POINTS
+        self.num_control_points = DRL_config.NUM_CONTROL_POINTS
         self.cp_dim = self.num_control_points * 2
         self.action_space = Box(low=-1.0, high=1.0, shape=(self.cp_dim,), dtype=np.float32)
         self.observation_space = Box(low=-1.0, high=1.0, shape=(self.cp_dim,), dtype=np.float32)

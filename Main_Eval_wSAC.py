@@ -1,6 +1,6 @@
 from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import VecNormalize,DummyVecEnv
-import config
+import DRL_config
 from AirfoilEnv import AirfoilEnv
 from pathlib import Path
 
@@ -11,29 +11,29 @@ def create_env(env_id: int):
         # directory where the Python script lives
         SCRIPT_DIR = Path(__file__).resolve().parent
         # WORK_ROOT from config, relative to script location
-        root = SCRIPT_DIR / getattr(config, "WORK_ROOT", "runs")
+        root = SCRIPT_DIR / getattr(DRL_config, "WORK_ROOT", "runs")
         work_dir = root / f"env_{env_id}"
         
         return AirfoilEnv(
             env_id=env_id,
-            n_envs=config.NUM_ENVS,
+            n_envs=DRL_config.NUM_ENVS,
             work_dir=str(work_dir),    
             save_data=False,
-            fidelity=config.FIDELITY,
+            fidelity=DRL_config.FIDELITY,
             batch_id=0,
-            angle_of_attack=config.AOA,
-            Re_number=config.RE,
-            scaling_factor=config.ACTION_SCALE,
-            airfoil_file=config.AIRFOIL_FILE,
-            max_steps=config.MAX_STEPS,
-            max_no_improvement_episodes=config.MAX_NO_IMPROV,
-            objective=config.OBJECTIVE,
+            angle_of_attack=DRL_config.AOA,
+            Re_number=DRL_config.RE,
+            scaling_factor=DRL_config.ACTION_SCALE,
+            airfoil_file=DRL_config.AIRFOIL_FILE,
+            max_steps=DRL_config.MAX_STEPS,
+            max_no_improvement_episodes=DRL_config.MAX_NO_IMPROV,
+            objective=DRL_config.OBJECTIVE,
         )
     return _init
 
 if __name__ == "__main__":
    
-    BASENAME = (f"Re{int(config.RE/1.e06)}M_AoA{int(config.AOA):02d}_{config.OBJECTIVE.upper()}")
+    BASENAME = (f"Re{int(DRL_config.RE/1.e06)}M_AoA{int(DRL_config.AOA):02d}_{DRL_config.OBJECTIVE.upper()}")
 
     AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
     CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     obs = vec_env.reset()
     episode = 0
-    while episode < config.MAX_EPISODES:
+    while episode < DRL_config.MAX_EPISODES:
         episode += 1
         action, _ = model.predict(obs, deterministic=True) # type: ignore
         obs, rewards, dones, infos = vec_env.step(action)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 print(f"[env {i}] stopping: no-improvement threshold met.")
                 break
 
-        if episode % config.SAVE_INTERVAL == 0:
+        if episode % DRL_config.SAVE_INTERVAL == 0:
             model.save(f"airfoil_{BASENAME}_{TAG}_ep{episode}")
             print(f"Saved model at episode {episode}")
 

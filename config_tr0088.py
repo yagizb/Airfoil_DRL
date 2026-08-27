@@ -1,6 +1,19 @@
 import torch
 import numpy as np
 import random
+import json
+from pathlib import Path
+
+def read_flow_config(config_file="flow_config.json"):
+    script_dir = Path(__file__).resolve().parent
+    config_path = script_dir / config_file
+
+    with open(config_path, "r") as f:
+        flow_config = json.load(f)
+
+    return flow_config
+
+flow_config = read_flow_config()
 
 # ---------- General ----------
 SEED            = 42
