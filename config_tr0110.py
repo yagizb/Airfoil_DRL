@@ -19,7 +19,7 @@ SEED            = 42
 # ---------- Environment ----------
 NUM_ENVS        = 32
 OBJECTIVE       = "cl_cd"      # "cl" or "cl_cd" 
-FIDELITY        = 0         # 0=Xfoil, 1=RANS, 2=LES
+FIDELITY        = 1         # 0=Xfoil, 1=RANS, 2=LES
 TRAIN           = "000"      ## 0=Xfoil, 1=RANS, 2=LES 
 AOA             = 10       # Angle of attack (degrees)
 RE              = 3.0E6     # Reynolds Number
@@ -58,7 +58,7 @@ TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train
 VERBOSE         = 1
 
 # ---------- Logging / Saving ----------
-MAX_EPISODES    = 2001
+MAX_EPISODES    = 101
 SAVE_INTERVAL   = 3001
 
  

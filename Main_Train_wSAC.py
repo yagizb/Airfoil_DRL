@@ -10,7 +10,7 @@ from Reset import reset_history
 
 
 # --- GLOBAL SEED SETUP ---
-trial_number = 48
+trial_number = 110
 SEED = int(DRL_config.SEED) + trial_number
 
 
@@ -38,61 +38,79 @@ def create_env(env_id: int, seed: int = 0):
 
         # --- CRITICAL: per-env seeding ---
         env.reset(seed=seed + env_id)
-
         return env
-
     return _init
-
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
 
-    reset_history(DRL_config.AIRFOIL_HISTORY_DIR, DRL_config.CL_CD_HISTORY_DIR)
-
-    MODEL_BASENAME = f"airfoil_Re{int(DRL_config.RE/1e6)}M_AoA{int(DRL_config.AOA):02d}_{DRL_config.OBJECTIVE.upper()}"
-
-    # --- PASS SEED TO EACH ENV ---
-    train_env = SubprocVecEnv(
-        [create_env(i, seed=SEED) for i in range(DRL_config.NUM_ENVS)],
-        start_method="spawn",
+    reset_history(
+        DRL_config.AIRFOIL_HISTORY_DIR,
+        DRL_config.CL_CD_HISTORY_DIR,
     )
 
-    train_env = VecMonitor(train_env)
-    train_env = VecNormalize(train_env, norm_obs=True, norm_reward=True, clip_obs=10.0)
-
-    train_env.seed(SEED)
-
-    model = SAC(
-        "MlpPolicy",
-        train_env,
-        batch_size=DRL_config.BATCH_SIZE,
-        buffer_size=DRL_config.BUFFER_SIZE,
-        ent_coef=DRL_config.ENT_COEF,
-        gamma=DRL_config.GAMMA,
-        gradient_steps=DRL_config.GRADIENT_STEPS,
-        learning_rate=DRL_config.LEARNING_RATE,
-        tau=DRL_config.TAU,
-        train_freq=DRL_config.TRAIN_FREQ,
-        learning_starts=DRL_config.LEARNING_STARTS,
-        seed=SEED,   # important
-        verbose=1,
-        tensorboard_log="./tensorboard_logs/",
+    MODEL_BASENAME = (
+        f"airfoil_Re{int(DRL_config.RE / 1e6)}M_"
+        f"AoA{int(DRL_config.AOA):02d}_"
+        f"{DRL_config.OBJECTIVE.upper()}"
     )
 
-    cb = TensorboardAeroCallback(log_every=100)
+    train_env = None
 
-    model.learn(
-        total_timesteps=DRL_config.TOTAL_TIMESTEPS,
-        callback=cb,
-        tb_log_name=f"XFOIL001_SACtr{trial_number}_MaxCL"
-    )
+    try:
+        train_env = SubprocVecEnv(
+            [
+                create_env(i, seed=SEED)
+                for i in range(DRL_config.NUM_ENVS)
+            ],
+            start_method="spawn",
+        )
 
-    print("Learned")
+        train_env = VecMonitor(train_env)
+        train_env = VecNormalize(
+            train_env,
+            norm_obs=True,
+            norm_reward=True,
+            clip_obs=10.0,
+        )
+        train_env.seed(SEED)
 
-    ms = MODEL_BASENAME + f"_XFOIL001_SACtr{trial_number}_MaxCL"
+        model = SAC(
+            "MlpPolicy",
+            train_env,
+            batch_size=DRL_config.BATCH_SIZE,
+            buffer_size=DRL_config.BUFFER_SIZE,
+            ent_coef=DRL_config.ENT_COEF,
+            gamma=DRL_config.GAMMA,
+            gradient_steps=DRL_config.GRADIENT_STEPS,
+            learning_rate=DRL_config.LEARNING_RATE,
+            tau=DRL_config.TAU,
+            train_freq=DRL_config.TRAIN_FREQ,
+            learning_starts=DRL_config.LEARNING_STARTS,
+            seed=SEED,
+            verbose=1,
+            tensorboard_log="./tensorboard_logs/",
+        )
 
-    model.save(ms)
-    train_env.save(ms + ".pkl")
-    train_env.close()
+        cb = TensorboardAeroCallback(log_every=100)
 
-    print("Model saved")
+        model.learn(
+            total_timesteps=DRL_config.TOTAL_TIMESTEPS,
+            callback=cb,
+            tb_log_name=f"XFRN_SACtr{trial_number}_MaxCLCD",
+        )
+
+        print("Learned")
+
+        ms = (
+            MODEL_BASENAME
+            + f"_XFRN_SACtr{trial_number}_MaxCLCD"
+        )
+
+        model.save(ms)
+        train_env.save(ms + ".pkl")
+        print("Model saved")
+
+    finally:
+        if train_env is not None:
+            train_env.close()

@@ -15,7 +15,7 @@
    "width_outlet":0.08,    
    "per_surface_ID":10,
    "z_spanwise_len":0.2,
-   "z_spanwise_planes":48,
+   "z_spanwise_planes":4,
    "porder":2,
    "num_partitions":4,
    "airfoil_per.geo":"airfoil_per.geo",

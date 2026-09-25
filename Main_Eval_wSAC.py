@@ -38,7 +38,7 @@ if __name__ == "__main__":
     AIRFOIL_HISTORY_DIR = (f"airfoil_history_{BASENAME}")
     CL_CD_HISTORY_DIR   = (f"cl_cd_history_{BASENAME}")
     reset_history(AIRFOIL_HISTORY_DIR, CL_CD_HISTORY_DIR)
-    TAG = "XFOIL001_SACtr48_MaxCL"
+    TAG = "XFRN_SACtr88_MaxCLCD"
    
     #ms = Path(MODEL_BASENAME + "_001")
     SCRIPT_DIR = Path(__file__).resolve().parent

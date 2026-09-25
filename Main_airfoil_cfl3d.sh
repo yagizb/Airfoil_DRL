@@ -3,7 +3,7 @@
 #SBATCH --chdir=.
 #SBATCH --output=out.out
 #SBATCH --error=error.err
-#SBATCH --qos=gp_bsccase
+#SBATCH --qos=gp_debug
 #SBATCH --account=bsc21
 #SBATCH --time=00:30:00
 #SBATCH --nodes=1

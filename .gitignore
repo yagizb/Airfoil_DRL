@@ -17,6 +17,10 @@ venv/
 # logs / outputs
 *.log
 *.out
+*.e
+*.o
+*.err
+tensorboard_logs/
 runs/
 outputs/
 results/
@@ -34,4 +38,4 @@ airfoil_history_*
 
 # Also good to ignore logs
 cl_cd_history_*
-runs/
+00_Notes

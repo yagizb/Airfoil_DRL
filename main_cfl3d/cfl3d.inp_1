@@ -12,9 +12,13 @@ cfl3d.out20
 ovrlp.bin
 patch.bin
 restart.bin
+>
+isarc2d 1
+sarccr3 1.0
+<
     NACA 0012
      XMACH     ALPHA      BETA  REUE,MIL   TINF,DR     IALPH    IHSTRY
-   0.1500    0.000    0.0    3.0000    520.0    1    0
+   0.1500      0.000       0.0    3.0000     520.0       1           0
       SREF      CREF      BREF       XMC       YMC       ZMC
    1.00000   1.00000    1.0000   0.00000      0.00      0.00
         DT     IREST   IFLAGTS      FMAX     IUNST    CFLTAU
@@ -24,7 +28,7 @@ restart.bin
        NCG       IEM  IADVANCE    IFORCE  IVISC(I)  IVISC(J)  IVISC(K)
          3         0         0       020         0         5        0
       IDIM      JDIM      KDIM
-        2       101        250
+        2       151        250
     ILAMLO    ILAMHI    JLAMLO    JLAMHI    KLAMLO    KLAMHI
          0         0         0         0         0         0
      INEWG    IGRIDC        IS        JS        KS        IE        JE        KE
@@ -61,9 +65,9 @@ KDIM: GRID   SEGMENT    BCTYPE      ISTA      IEND      JSTA      JEND     NDATA
       NBLI
          1
  NUMBER   GRID     :    ISTA   JSTA   KSTA   IEND   JEND   KEND  ISVA1  ISVA2
-      1      1             1      1     250     2    101    250      1     2
+      1      1             1      1     250     2    151    250      1     2
  NUMBER   GRID     :    ISTA   JSTA   KSTA   IEND   JEND   KEND  ISVA1  ISVA2
-      1      1             1      1      1      2    101      1      1     2
+      1      1             1      1      1      2    151      1      1     2
   PATCH SURFACE DATA:1
     NINTER  
          0

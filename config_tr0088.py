@@ -59,7 +59,7 @@ TRAIN_PHASE     = 0                 # =0 first learn, >0 continue to train
 VERBOSE         = 1
 
 # ---------- Logging / Saving ----------
-MAX_EPISODES    = 2001
+MAX_EPISODES    = 101
 SAVE_INTERVAL   = 3001
 
  

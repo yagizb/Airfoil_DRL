@@ -5,6 +5,7 @@ import gymnasium as gym
 from gymnasium.spaces import Box
 
 from BezierCurv import generate_airfoil
+from SOD2Drun import sod2d_airfoil
 from Xfoil import analyze_airfoil
 from CFL3Drun import cfl3d_airfoil
 import DRL_config
@@ -220,8 +221,9 @@ class AirfoilEnv(gym.Env):
 
         # ---------- 2) Aerodynamics evaluation ----------
         CL = CD = CLX =  CDX = None
-
-        # XFOIL gate + CFL3D
+ 
+        # XFOIL is always run first and acts as the gate for
+        # all higher-fidelity evaluations.
         CLX, CDX = analyze_airfoil(
             self.airfoil_file,
             self.angle_of_attack,
@@ -229,43 +231,153 @@ class AirfoilEnv(gym.Env):
             work_dir=self.work_dir,
         )
 
-        if self.fidelity == 3:
-            # Load from broker_io/results_k.json
-            try:
-                with open(f"broker_io/results_{self.batch_id}.json", "r") as f:
-                    data = json.load(f)
-                    for result in data["results"]:
-                        if result["env_id"] == self.env_id:
-                            CL = float(result["Cl"])
-                            CD = float(result["CD"])
-                            break
-                    else:
-                        print(f"[Warning] No match for env_id={self.env_id}")
-            except Exception as e:
-                print(f"[Error] Failed to load broker_io/results_{self.batch_id}.json: {e}")
+        xfoil_gate_failed = (
+            CLX is None
+            or CDX is None
+            or not np.isfinite(CLX)
+            or not np.isfinite(CDX)
+            or CLX <= 0.0
+        )
 
-        elif self.fidelity == 2:
-            print(f"[Env {self.env_id}] SOD2D evaluation (stub)")
-            CL, CD = 0.0, self.eps
+        # Fidelity 0 always uses the XFOIL result.
+        # For higher fidelities, a failed XFOIL gate prevents
+        # the expensive solver from running.
+        if self.fidelity == 0 or xfoil_gate_failed:
+            CL, CD = CLX, CDX
+
+            if self.fidelity == 0:
+                print(
+                    f"[Env {self.env_id}] Using XFOIL result: "
+                    f"CL={CLX}, CD={CDX}"
+                )
+            else:
+                print(
+                    f"[Env {self.env_id}] XFOIL gate rejected result; "
+                    f"skipping fidelity {self.fidelity}: "
+                    f"CL={CLX}, CD={CDX}"
+                )
 
         elif self.fidelity == 1:
-            if (CLX is None) or (CDX is None) or (CLX <= 0.0):
-                print(f"[Env {self.env_id}] XFOIL CL <= 0 → use coarse result")
-                CL, CD = CLX, CDX
+            print(f"[Env {self.env_id}] Running CFL3D simulation")
+
+            CL, CD = cfl3d_airfoil(
+                self.env_id,
+                self.n_envs,
+                self.airfoil_file,
+                self.angle_of_attack,
+                self.Re_number,
+                self.fidelity,
+                work_dir=self.work_dir,
+            )
+
+        elif self.fidelity == 2:
+            # Fidelity 2 is sequential:
+            # 1. Run CFL3D.
+            # 2. Run SOD2D only if CFL3D succeeds.
+            # 3. Use the SOD2D result for the final reward.
+
+            print(
+                f"[Env {self.env_id}] Running CFL3D initialization "
+                "for SOD2D"
+            )
+
+            CL_cfl3d, CD_cfl3d = cfl3d_airfoil(
+                self.env_id,
+                self.n_envs,
+                self.airfoil_file,
+                self.angle_of_attack,
+                self.Re_number,
+                self.fidelity,
+                work_dir=self.work_dir,
+            )
+
+            cfl3d_failed = (
+                CL_cfl3d is None
+                or CD_cfl3d is None
+                or not np.isfinite(CL_cfl3d)
+                or not np.isfinite(CD_cfl3d)
+            )
+
+            if cfl3d_failed:
+                print(
+                    f"[Env {self.env_id}] CFL3D failed; "
+                    "skipping SOD2D: "
+                    f"CL={CL_cfl3d}, CD={CD_cfl3d}"
+                )
+
+                # Pass the failed CFL3D result to eval_reward_01(),
+                # which will apply the appropriate penalty.
+                CL, CD = CL_cfl3d, CD_cfl3d
+
             else:
-                print(f"[Env {self.env_id}] Run CFL3D simulation")
-                CL, CD = cfl3d_airfoil(
+                print(
+                    f"[Env {self.env_id}] CFL3D completed: "
+                    f"CL={CL_cfl3d}, CD={CD_cfl3d}"
+                )
+                print(f"[Env {self.env_id}] Running SOD2D simulation")
+
+                CL, CD = sod2d_airfoil(
                     self.env_id,
                     self.n_envs,
                     self.airfoil_file,
                     self.angle_of_attack,
                     self.Re_number,
+                    self.fidelity,
                     work_dir=self.work_dir,
                 )
-        else:
-            print(f"[Env {self.env_id}] Run XFOIL simulation")
-            CL, CD = CLX, CDX
 
+        elif self.fidelity == 3:
+            results_file = os.path.join(
+                self.work_dir,
+                "broker_io",
+                f"results_{self.batch_id}.json",
+            )
+
+            print(
+                f"[Env {self.env_id}] Loading broker result from "
+                f"{results_file}"
+            )
+
+            try:
+                with open(results_file, "r", encoding="utf-8") as file:
+                    data = json.load(file)
+
+                matching_result = next(
+                    (
+                        result
+                        for result in data.get("results", [])
+                        if result.get("env_id") == self.env_id
+                    ),
+                    None,
+                )
+
+                if matching_result is None:
+                    print(
+                        f"[Warning] No broker result found for "
+                        f"env_id={self.env_id}"
+                    )
+                else:
+                    # Change "Cl" to "CL" if the broker uses that key.
+                    CL = float(matching_result["Cl"])
+                    CD = float(matching_result["CD"])
+
+            except (
+                OSError,
+                json.JSONDecodeError,
+                KeyError,
+                TypeError,
+                ValueError,
+            ) as error:
+                print(
+                    f"[Error] Failed to load {results_file}: {error}"
+                )
+
+        else:
+            raise ValueError(
+                f"[Env {self.env_id}] Unsupported fidelity: "
+                f"{self.fidelity}"
+            )
+        
         # ---------- 3) Reward ----------
         reward, obj_val, CL, CD = self.eval_reward_01(CL, CD)
         LD = float(CL / max(CD, self.eps)) if (CL is not None and CD is not None) else 0.0
